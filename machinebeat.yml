@@ -10,7 +10,7 @@ machinebeat:
   # Defines how often an event is sent to the output
   period: 10s
   #period: 10s
-  
+
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://opcuaserver.com:48010"
 
@@ -26,53 +26,53 @@ machinebeat:
   -  ns: 3
      id: "AirConditioner_2.Humidity"
   -  ns: 3
-     id: "AirConditioner_2.Temperature"	
+     id: "AirConditioner_2.Temperature"
   -  ns: 3
      id: "AirConditioner_3.State"
   -  ns: 3
-     id: "AirConditioner_3.Humidity"	
+     id: "AirConditioner_3.Humidity"
   -  ns: 3
      id: "AirConditioner_3.Temperature"
   -  ns: 3
      id: "AirConditioner_4.State"
   -  ns: 3
-     id: "AirConditioner_4.Humidity"	
+     id: "AirConditioner_4.Humidity"
   -  ns: 3
      id: "AirConditioner_4.Temperature"
   -  ns: 3
      id: "AirConditioner_5.State"
   -  ns: 3
-     id: "AirConditioner_5.Humidity"	
+     id: "AirConditioner_5.Humidity"
   -  ns: 3
      id: "AirConditioner_5.Temperature"
   -  ns: 3
      id: "AirConditioner_6.State"
   -  ns: 3
-     id: "AirConditioner_6.Humidity"	
+     id: "AirConditioner_6.Humidity"
   -  ns: 3
      id: "AirConditioner_6.Temperature"
   -  ns: 3
      id: "AirConditioner_7.State"
   -  ns: 3
-     id: "AirConditioner_7.Humidity"	
+     id: "AirConditioner_7.Humidity"
   -  ns: 3
      id: "AirConditioner_7.Temperature"
   -  ns: 3
      id: "AirConditioner_8.State"
   -  ns: 3
-     id: "AirConditioner_8.Humidity"	
+     id: "AirConditioner_8.Humidity"
   -  ns: 3
      id: "AirConditioner_8.Temperature"
   -  ns: 3
      id: "AirConditioner_9.State"
   -  ns: 3
-     id: "AirConditioner_9.Humidity"	
+     id: "AirConditioner_9.Humidity"
   -  ns: 3
      id: "AirConditioner_9.Temperature"
   -  ns: 3
      id: "AirConditioner_10.State"
   -  ns: 3
-     id: "AirConditioner_10.Humidity"	
+     id: "AirConditioner_10.Humidity"
   -  ns: 3
      id: "AirConditioner_10.Temperature"
   -  ns: 3
@@ -86,53 +86,53 @@ machinebeat:
   -  ns: 3
      id: "Furnace_2.GasFlow"
   -  ns: 3
-     id: "Furnace_2.Temperature"	
+     id: "Furnace_2.Temperature"
   -  ns: 3
      id: "Furnace_3.State"
   -  ns: 3
-     id: "Furnace_3.GasFlow"	
+     id: "Furnace_3.GasFlow"
   -  ns: 3
      id: "Furnace_3.Temperature"
   -  ns: 3
      id: "Furnace_4.State"
   -  ns: 3
-     id: "Furnace_4.GasFlow"	
+     id: "Furnace_4.GasFlow"
   -  ns: 3
      id: "Furnace_4.Temperature"
   -  ns: 3
      id: "Furnace_5.State"
   -  ns: 3
-     id: "Furnace_5.GasFlow"	
+     id: "Furnace_5.GasFlow"
   -  ns: 3
      id: "Furnace_5.Temperature"
   -  ns: 3
      id: "Furnace_6.State"
   -  ns: 3
-     id: "Furnace_6.GasFlow"	
+     id: "Furnace_6.GasFlow"
   -  ns: 3
      id: "Furnace_6.Temperature"
   -  ns: 3
      id: "Furnace_7.State"
   -  ns: 3
-     id: "Furnace_7.GasFlow"	
+     id: "Furnace_7.GasFlow"
   -  ns: 3
      id: "Furnace_7.Temperature"
   -  ns: 3
      id: "Furnace_8.State"
   -  ns: 3
-     id: "Furnace_8.GasFlow"	
+     id: "Furnace_8.GasFlow"
   -  ns: 3
      id: "Furnace_8.Temperature"
   -  ns: 3
      id: "Furnace_9.State"
   -  ns: 3
-     id: "Furnace_9.GasFlow"	
+     id: "Furnace_9.GasFlow"
   -  ns: 3
      id: "Furnace_9.Temperature"
   -  ns: 3
      id: "Furnace_10.State"
   -  ns: 3
-     id: "Furnace_10.GasFlow"	
+     id: "Furnace_10.GasFlow"
   -  ns: 3
      id: "Furnace_10.Temperature"
 #==================== Elasticsearch template setting ==========================
@@ -189,8 +189,8 @@ setup.kibana:
 # The cloud.id setting overwrites the `output.elasticsearch.hosts` and
 # `setup.kibana.host` options.
 # You can find the `cloud.id` in the Elastic Cloud web UI.
-cloud.id: "Demo_environment:ZXUtY2VudHJhbC0xLmF3cy5jbG91ZC5lcy5pbyQ3NDQ1MzA3Y2IyOTc0MjQzOGQ1Y2QxNDQ0NDEwMTMyMiRhZWI3ZmQyNWYyYWI0YWVjOWMwOTQ0ZDY2YjhkYTk2OQ=="
-cloud.auth: "elastic:y6PfLobWE2GbXn5u0xpsXGW1"
+cloud.id: ""
+cloud.auth: ""
 
 
 #================================ Outputs =====================================

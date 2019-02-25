@@ -2,6 +2,5 @@
 /build
 
 .DS_Store
-/machinebeat
 /machinebeat.test
 *.pyc
