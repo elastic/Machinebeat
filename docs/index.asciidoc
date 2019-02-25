@@ -1,0 +1,5 @@
+= Machinebeat Docs
+
+Welcome to the Machinebeat documentation.
+
+
