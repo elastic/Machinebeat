@@ -7,9 +7,10 @@
 
 machinebeat:
 
-  # Defines how often an event is sent to the output
+  # Defines how often an event collector is started. It is possible that multiple
+  # event collectors run in parallel if the collection of the data takes longer
+  # then your period is configured
   period: 10s
-  #period: 10s
 
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://opcuaserver.com:48010"

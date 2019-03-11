@@ -85,7 +85,7 @@ func discover() error {
 }
 
 func collectData(node config.Node) (map[string]interface{}, error) {
-	logp.Info("Collecting data from Node %v (NS = %v)", node.ID, node.Namespace)
+	logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", node.ID, node.Namespace)
 	var retVal = make(map[string]interface{})
 	var nodeId *datatypes.NodeID
 
@@ -95,7 +95,7 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 	case string:
 		nodeId = datatypes.NewStringNodeID(node.Namespace, node.ID.(string))
 	default:
-		logp.Info("Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
+		logp.Debug("Collect", "Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
 	}
 	if err := session.ReadRequest(
 		2000, services.TimestampsToReturnBoth, datatypes.NewReadValueID(
@@ -124,10 +124,11 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 		retVal["Node"] = node.ID
 		retVal["Value"] = value.Value
 		retVal["Status"] = status
+		retVal["Value_Timestamp"] = m.Timestamp
 	default:
 		logp.Debug("Collect", "Response type unknown")
 	}
-	logp.Info("Data collection done")
+	logp.Debug("Collect", "Data collection done")
 
 	return retVal, nil
 }
@@ -142,9 +143,9 @@ func handleReadResponse(resp *services.ReadResponse) (value *datatypes.Variant, 
 
 func closeConnection() {
 	session.Close()
-	logp.Info("Successfully closed session with %v", secChan.RemoteEndpoint())
+	logp.Debug("Collect", "Successfully closed session with %v", secChan.RemoteEndpoint())
 	secChan.Close()
-	logp.Info("Successfully closed secure channel with %v", client.RemoteEndpoint())
+	logp.Debug("Collect", "Successfully closed secure channel with %v", client.RemoteEndpoint())
 	client.Close()
-	logp.Info("Successfully shutdown connection")
+	logp.Debug("Collect", "Successfully shutdown connection")
 }

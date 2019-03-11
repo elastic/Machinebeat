@@ -46,31 +46,42 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 	if err != nil {
 		return err
 	}
+	logp.Info("Start collecting now")
 	ticker := time.NewTicker(bt.config.Period)
 	for {
 		select {
 		case <-bt.done:
 			return nil
 		case <-ticker.C:
+			go collect(bt, b)
 		}
-		for _, node := range bt.config.Nodes {
-			data, err := collectData(node)
-			if err != nil {
-				return err
-			}
-			event := beat.Event{
-				Timestamp: time.Now(),
-				Fields: common.MapStr{
-					"type": b.Info.Name,
-				},
-			}
-			for name, value := range data {
-				event.Fields.Put(name, value)
-			}
-			bt.client.Publish(event)
-		}
-		logp.Info("Event sent")
+
 	}
+}
+
+func collect(bt *Machinebeat, b *beat.Beat) error {
+	logp.Debug("Collector", "Event collector instance started")
+	var events []beat.Event
+	for _, node := range bt.config.Nodes {
+		data, err := collectData(node)
+		if err != nil {
+			logp.Error(err)
+			return err
+		}
+		event := beat.Event{
+			Timestamp: time.Now(),
+			Fields: common.MapStr{
+				"type": b.Info.Name,
+			},
+		}
+		for name, value := range data {
+			event.Fields.Put(name, value)
+		}
+		events = append(events, event)
+	}
+	bt.client.PublishAll(events)
+	logp.Info("Event collector instance finished sucessfully with %v events.", len(events))
+	return nil
 }
 
 // Stop stops machinebeat.
