@@ -2,6 +2,7 @@ package beater
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/elastic/beats/libbeat/beat"
@@ -61,26 +62,26 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 
 func collect(bt *Machinebeat, b *beat.Beat) error {
 	logp.Debug("Collector", "Event collector instance started")
-	var events []beat.Event
+	event := beat.Event{
+		Timestamp: time.Now(),
+		Fields: common.MapStr{
+			"type": b.Info.Name,
+		},
+	}
 	for _, node := range bt.config.Nodes {
 		data, err := collectData(node)
 		if err != nil {
 			logp.Error(err)
 			return err
 		}
-		event := beat.Event{
-			Timestamp: time.Now(),
-			Fields: common.MapStr{
-				"type": b.Info.Name,
-			},
-		}
+
 		for name, value := range data {
-			event.Fields.Put(name, value)
+			var fieldId = []string{node.ID.(string), name}
+			event.Fields.Put(strings.Join(fieldId, "|"), value)
 		}
-		events = append(events, event)
 	}
-	bt.client.PublishAll(events)
-	logp.Debug("Collector", "Event collector instance finished sucessfully with %v events.", len(events))
+	bt.client.Publish(event)
+	logp.Debug("Collector", "Event collector instance finished sucessfully.")
 	return nil
 }
 
