@@ -2,6 +2,7 @@ package beater
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/elastic/beats/libbeat/logp"
@@ -97,6 +98,8 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 	default:
 		logp.Debug("Collect", "Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
 	}
+
+	//TODO: Add all configured node ids to this request
 	if err := session.ReadRequest(
 		2000, services.TimestampsToReturnBoth, datatypes.NewReadValueID(
 			nodeId, datatypes.IntegerIDValue, "", 0, "",
@@ -121,10 +124,11 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 	switch m := msg.Service.(type) {
 	case *services.ReadResponse:
 		value, status := handleReadResponse(m)
-		retVal["Node"] = node.ID
 		if value != nil {
-			retVal["Value"] = value.Value
+			return nil, errors.New("No value error.")
 		}
+		retVal["Node"] = node.ID
+		retVal["Value"] = value.Value
 		retVal["Status"] = status
 		retVal["Value_Timestamp"] = m.Timestamp
 	default:

@@ -19,6 +19,8 @@ type Machinebeat struct {
 	client beat.Client
 }
 
+var collectorError = false
+
 // New creates an instance of machinebeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	c := config.DefaultConfig
@@ -54,7 +56,18 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 		case <-bt.done:
 			return nil
 		case <-ticker.C:
-			go collect(bt, b)
+			if !collectorError {
+				go collect(bt, b)
+			} else {
+				//It seems that there was an error, we will try to reconnect
+				err := connect(bt.config.Endpoint)
+
+				if err != nil {
+					return err
+				}
+
+				collectorError = false
+			}
 		}
 
 	}
@@ -72,6 +85,7 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 		data, err := collectData(node)
 		if err != nil {
 			logp.Error(err)
+			collectorError = true
 			return err
 		}
 
