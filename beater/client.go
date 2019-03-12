@@ -122,7 +122,9 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 	case *services.ReadResponse:
 		value, status := handleReadResponse(m)
 		retVal["Node"] = node.ID
-		retVal["Value"] = value.Value
+		if value.Value != nil {
+			retVal["Value"] = value.Value
+		}
 		retVal["Status"] = status
 		retVal["Value_Timestamp"] = m.Timestamp
 	default:
