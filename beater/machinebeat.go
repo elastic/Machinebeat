@@ -56,7 +56,7 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 		case <-bt.done:
 			return nil
 		case <-ticker.C:
-			if !collectorError {
+			if connected {
 				go collect(bt, b)
 			} else {
 				//It seems that there was an error, we will try to reconnect
@@ -67,8 +67,6 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 				if err != nil {
 					return err
 				}
-
-				collectorError = false
 			}
 		}
 
@@ -88,7 +86,7 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 		if err != nil {
 			logp.Info("error: %v", err)
 			logp.Error(err)
-			collectorError = true
+			connected = false
 			return err
 		}
 

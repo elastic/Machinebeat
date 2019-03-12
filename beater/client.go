@@ -154,4 +154,5 @@ func closeConnection() {
 	logp.Debug("Collect", "Successfully closed secure channel with %v", client.RemoteEndpoint())
 	client.Close()
 	logp.Debug("Collect", "Successfully shutdown connection")
+	connected = false
 }
