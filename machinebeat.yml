@@ -10,7 +10,7 @@ machinebeat:
   # Defines how often an event collector is started. It is possible that multiple
   # event collectors run in parallel if the collection of the data takes longer
   # then your period is configured
-  period: 10s
+  period: 100ms
 
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://opcuaserver.com:48010"
@@ -18,124 +18,7 @@ machinebeat:
   nodes:
   -  ns: 3
      id: "AirConditioner_1.State"
-  -  ns: 3
-     id: "AirConditioner_1.Humidity"
-  -  ns: 3
-     id: "AirConditioner_1.Temperature"
-  -  ns: 3
-     id: "AirConditioner_2.State"
-  -  ns: 3
-     id: "AirConditioner_2.Humidity"
-  -  ns: 3
-     id: "AirConditioner_2.Temperature"
-  -  ns: 3
-     id: "AirConditioner_3.State"
-  -  ns: 3
-     id: "AirConditioner_3.Humidity"
-  -  ns: 3
-     id: "AirConditioner_3.Temperature"
-  -  ns: 3
-     id: "AirConditioner_4.State"
-  -  ns: 3
-     id: "AirConditioner_4.Humidity"
-  -  ns: 3
-     id: "AirConditioner_4.Temperature"
-  -  ns: 3
-     id: "AirConditioner_5.State"
-  -  ns: 3
-     id: "AirConditioner_5.Humidity"
-  -  ns: 3
-     id: "AirConditioner_5.Temperature"
-  -  ns: 3
-     id: "AirConditioner_6.State"
-  -  ns: 3
-     id: "AirConditioner_6.Humidity"
-  -  ns: 3
-     id: "AirConditioner_6.Temperature"
-  -  ns: 3
-     id: "AirConditioner_7.State"
-  -  ns: 3
-     id: "AirConditioner_7.Humidity"
-  -  ns: 3
-     id: "AirConditioner_7.Temperature"
-  -  ns: 3
-     id: "AirConditioner_8.State"
-  -  ns: 3
-     id: "AirConditioner_8.Humidity"
-  -  ns: 3
-     id: "AirConditioner_8.Temperature"
-  -  ns: 3
-     id: "AirConditioner_9.State"
-  -  ns: 3
-     id: "AirConditioner_9.Humidity"
-  -  ns: 3
-     id: "AirConditioner_9.Temperature"
-  -  ns: 3
-     id: "AirConditioner_10.State"
-  -  ns: 3
-     id: "AirConditioner_10.Humidity"
-  -  ns: 3
-     id: "AirConditioner_10.Temperature"
-  -  ns: 3
-     id: "Furnace_1.State"
-  -  ns: 3
-     id: "Furnace_1.GasFlow"
-  -  ns: 3
-     id: "Furnace_1.Temperature"
-  -  ns: 3
-     id: "Furnace_2.State"
-  -  ns: 3
-     id: "Furnace_2.GasFlow"
-  -  ns: 3
-     id: "Furnace_2.Temperature"
-  -  ns: 3
-     id: "Furnace_3.State"
-  -  ns: 3
-     id: "Furnace_3.GasFlow"
-  -  ns: 3
-     id: "Furnace_3.Temperature"
-  -  ns: 3
-     id: "Furnace_4.State"
-  -  ns: 3
-     id: "Furnace_4.GasFlow"
-  -  ns: 3
-     id: "Furnace_4.Temperature"
-  -  ns: 3
-     id: "Furnace_5.State"
-  -  ns: 3
-     id: "Furnace_5.GasFlow"
-  -  ns: 3
-     id: "Furnace_5.Temperature"
-  -  ns: 3
-     id: "Furnace_6.State"
-  -  ns: 3
-     id: "Furnace_6.GasFlow"
-  -  ns: 3
-     id: "Furnace_6.Temperature"
-  -  ns: 3
-     id: "Furnace_7.State"
-  -  ns: 3
-     id: "Furnace_7.GasFlow"
-  -  ns: 3
-     id: "Furnace_7.Temperature"
-  -  ns: 3
-     id: "Furnace_8.State"
-  -  ns: 3
-     id: "Furnace_8.GasFlow"
-  -  ns: 3
-     id: "Furnace_8.Temperature"
-  -  ns: 3
-     id: "Furnace_9.State"
-  -  ns: 3
-     id: "Furnace_9.GasFlow"
-  -  ns: 3
-     id: "Furnace_9.Temperature"
-  -  ns: 3
-     id: "Furnace_10.State"
-  -  ns: 3
-     id: "Furnace_10.GasFlow"
-  -  ns: 3
-     id: "Furnace_10.Temperature"
+
 #==================== Elasticsearch template setting ==========================
 
 setup.template.settings:

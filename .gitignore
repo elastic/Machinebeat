@@ -3,4 +3,5 @@
 
 .DS_Store
 /machinebeat.test
+machinebeat_bk.yml
 *.pyc
