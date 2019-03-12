@@ -80,7 +80,7 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 		events = append(events, event)
 	}
 	bt.client.PublishAll(events)
-	logp.Info("Event collector instance finished sucessfully with %v events.", len(events))
+	logp.Debug("Collector", "Event collector instance finished sucessfully with %v events.", len(events))
 	return nil
 }
 
