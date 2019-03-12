@@ -76,8 +76,8 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 		}
 
 		for name, value := range data {
-			var fieldId = []string{node.ID.(string), name}
-			event.Fields.Put(strings.Join(fieldId, "|"), value)
+			var fieldId = []string{node.Label, name}
+			event.Fields.Put(strings.Join(fieldId, "."), value)
 		}
 	}
 	bt.client.Publish(event)

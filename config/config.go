@@ -14,6 +14,7 @@ type Config struct {
 type Node struct {
 	Namespace uint16      `config:"ns"`
 	ID        interface{} `config:"id"`
+	Label     string      `config:"label"`
 }
 
 var DefaultConfig = Config{
