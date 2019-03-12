@@ -84,6 +84,7 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 	for _, node := range bt.config.Nodes {
 		data, err := collectData(node)
 		if err != nil {
+			logp.Info("error: %v", err)
 			logp.Error(err)
 			collectorError = true
 			return err

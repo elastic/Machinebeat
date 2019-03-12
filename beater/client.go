@@ -124,8 +124,8 @@ func collectData(node config.Node) (map[string]interface{}, error) {
 	switch m := msg.Service.(type) {
 	case *services.ReadResponse:
 		value, status := handleReadResponse(m)
-		if value != nil {
-			return nil, errors.New("No value error.")
+		if value == nil {
+			return nil, errors.New("It looks like there was an error while getting the last chunk of data. Let's try to reconnect.")
 		}
 		retVal["Node"] = node.ID
 		retVal["Value"] = value.Value
