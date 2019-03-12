@@ -60,6 +60,8 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 				go collect(bt, b)
 			} else {
 				//It seems that there was an error, we will try to reconnect
+				logp.Info("Lets wait a while before reconnect happens")
+				time.Sleep(5 * time.Second)
 				err := connect(bt.config.Endpoint)
 
 				if err != nil {
