@@ -7,9 +7,10 @@ import "time"
 
 //TODO: Add number of errors and time before reconnect
 type Config struct {
-	Period   time.Duration `config:"period"`
-	Endpoint string        `config:"endpoint"`
-	Nodes    []Node        `config:"nodes"`
+	Period            time.Duration `config:"period"`
+	Endpoint          string        `config:"endpoint"`
+	Nodes             []Node        `config:"nodes"`
+	RetryOnErrorCount int           `config:"retryOnError"`
 }
 
 type Node struct {
@@ -19,6 +20,7 @@ type Node struct {
 }
 
 var DefaultConfig = Config{
-	Period:   1 * time.Second,
-	Endpoint: "opc.tcp://localhost:4840",
+	Period:            1 * time.Second,
+	Endpoint:          "opc.tcp://localhost:4840",
+	RetryOnErrorCount: 5,
 }

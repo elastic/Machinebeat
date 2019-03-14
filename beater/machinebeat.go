@@ -35,11 +35,24 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	return bt, nil
 }
 
+func establishConnection(bt *Machinebeat) error {
+	var err error
+	for i := bt.config.RetryOnErrorCount; i > 0; i-- {
+		err = connect(bt.config.Endpoint)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+	logp.Critical("Tried to connect %v times. Without success.", bt.config.RetryOnErrorCount)
+	return err
+}
+
 // Run starts machinebeat.
 func (bt *Machinebeat) Run(b *beat.Beat) error {
 	logp.Info("machinebeat is running! Hit CTRL-C to stop it.")
 
-	err := connect(bt.config.Endpoint)
+	err := establishConnection(bt)
 	if err != nil {
 		return err
 	}
@@ -62,9 +75,9 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 				//It seems that there was an error, we will try to reconnect
 				logp.Info("Lets wait a while before reconnect happens")
 				time.Sleep(5 * time.Second)
-				err := connect(bt.config.Endpoint)
-
+				err := establishConnection(bt)
 				if err != nil {
+					logp.Info("Reconnect was not successful")
 					return err
 				}
 			}
