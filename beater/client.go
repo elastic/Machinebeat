@@ -149,9 +149,7 @@ func handleReadResponse(resp *services.ReadResponse) (value *datatypes.Variant, 
 
 func closeConnection() {
 	session.Close()
-	logp.Debug("Collect", "Successfully closed session with %v", secChan.RemoteEndpoint())
 	secChan.Close()
-	logp.Debug("Collect", "Successfully closed secure channel with %v", client.RemoteEndpoint())
 	client.Close()
 	logp.Debug("Collect", "Successfully shutdown connection")
 	connected = false

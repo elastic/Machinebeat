@@ -40,11 +40,11 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 	logp.Info("machinebeat is running! Hit CTRL-C to stop it.")
 
 	err := connect(bt.config.Endpoint)
-
 	if err != nil {
 		return err
 	}
 
+	logp.Info("Connecting to event publisher")
 	bt.client, err = b.Publisher.Connect()
 	if err != nil {
 		return err

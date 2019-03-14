@@ -5,6 +5,7 @@ package config
 
 import "time"
 
+//TODO: Add number of errors and time before reconnect
 type Config struct {
 	Period   time.Duration `config:"period"`
 	Endpoint string        `config:"endpoint"`
