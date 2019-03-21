@@ -109,6 +109,7 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 		}
 	}
 	bt.client.Publish(event)
+	//event = beat.Event{}
 	logp.Debug("Collector", "Event collector instance finished sucessfully.")
 	return nil
 }

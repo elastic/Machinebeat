@@ -8,10 +8,10 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/felix-lessoer/machinebeat/config"
 
-	"github.com/wmnsk/gopcua/datatypes"
-	"github.com/wmnsk/gopcua/services"
-	"github.com/wmnsk/gopcua/uacp"
-	"github.com/wmnsk/gopcua/uasc"
+	"github.com/felix-lessoer/opcua/datatypes"
+	"github.com/felix-lessoer/opcua/services"
+	"github.com/felix-lessoer/opcua/uacp"
+	"github.com/felix-lessoer/opcua/uasc"
 )
 
 var (
