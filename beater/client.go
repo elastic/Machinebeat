@@ -1,25 +1,18 @@
 package beater
 
 import (
-	"context"
 	"errors"
-	"time"
 
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/felix-lessoer/machinebeat/config"
 
-	"github.com/felix-lessoer/opcua/datatypes"
-	"github.com/felix-lessoer/opcua/services"
-	"github.com/felix-lessoer/opcua/uacp"
-	"github.com/felix-lessoer/opcua/uasc"
+	"github.com/gopcua/opcua"
+	"github.com/gopcua/opcua/ua"
 )
 
 var (
-	client   *uacp.Conn
-	secChan  *uasc.SecureChannel
-	session  *uasc.Session
-	endpoint string
-
+	client    *opcua.Client
+	endpoint  string
 	connected = false
 )
 
@@ -28,128 +21,82 @@ func connect(endpointURL string) error {
 	endpoint = endpointURL
 	if !connected {
 		logp.Info("Connecting to %v", endpoint)
-		ctx := context.Background()
-		//ctx, _ := context.WithCancel(ctx)
-
-		client, err := uacp.Dial(ctx, endpoint)
-		if err != nil {
+		client = opcua.NewClient(endpoint, nil)
+		if err := client.Open(); err != nil {
 			return err
 		}
-		logp.Debug("Connect", "Successfully established connection with %v", client.RemoteEndpoint())
-
-		// Open SecureChannel on top of UACP Connection established above.
-		cfg := uasc.NewClientConfigSecurityNone(3333, 3600000)
-		secChan, err = uasc.OpenSecureChannel(ctx, client, cfg, 5*time.Second, 3)
-		if err != nil {
-			return err
-		}
-		logp.Debug("Connect", "Successfully opened secure channel with %v", secChan.RemoteEndpoint())
-
-		//discover()
-
-		sessCfg := uasc.NewClientSessionConfig(
-			[]string{"de-DE"},
-			datatypes.NewAnonymousIdentityToken("anonymous"),
-		)
-		session, err = uasc.CreateSession(ctx, secChan, sessCfg, 3, 5*time.Second)
-		if err != nil {
-			return err
-		}
-
-		logp.Debug("Connect", "Successfully created secure session with %v", secChan.RemoteEndpoint())
-
-		if err := session.Activate(); err != nil {
-			return err
-		}
-		logp.Debug("Connect", "Successfully activated secure session with %v", secChan.RemoteEndpoint())
-
 		connected = true
 		logp.Info("Connection established")
 	}
 	return err
 }
 
-func discover() error {
-	// Send FindServersRequest to remote Endpoint.
-	if err := secChan.FindServersRequest([]string{"ja-JP", "de-DE", "en-US"}, "gopcua-server"); err != nil {
-		return err
-	}
-	logp.Debug("Discover", "Successfully sent FindServersRequest")
+func collectData(nodeConfig config.Node) (map[string]interface{}, error) {
+	logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", nodeConfig.ID, nodeConfig.Namespace)
 
-	// Send GetEndpointsRequest to remote Endpoint.
-	if err := secChan.GetEndpointsRequest([]string{"ja-JP", "de-DE", "en-US"}, []string{"gopcua-server"}); err != nil {
-		return err
-	}
-	logp.Debug("Discover", "Successfully sent GetEndpointsRequest")
-
-	return nil
-}
-
-func collectData(node config.Node) (map[string]interface{}, error) {
-	logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", node.ID, node.Namespace)
 	var retVal = make(map[string]interface{})
-	var nodeId *datatypes.NodeID
+	var nodeID *ua.NodeID
+	var node *opcua.Node
 
-	switch v := node.ID.(type) {
+	switch v := nodeConfig.ID.(type) {
 	case int:
-		nodeId = datatypes.NewNumericNodeID(node.Namespace, node.ID.(uint32))
+		nodeID = ua.NewNumericNodeID(nodeConfig.Namespace, nodeConfig.ID.(uint32))
 	case string:
-		nodeId = datatypes.NewStringNodeID(node.Namespace, node.ID.(string))
+		nodeID = ua.NewStringNodeID(nodeConfig.Namespace, nodeConfig.ID.(string))
 	default:
 		logp.Debug("Collect", "Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
 	}
+	node = client.Node(nodeID)
 
-	//TODO: Add all configured node ids to this request
-	if err := session.ReadRequest(
-		2000, services.TimestampsToReturnBoth, datatypes.NewReadValueID(
-			nodeId, datatypes.IntegerIDValue, "", 0, "",
-		),
-	); err != nil {
-		return nil, err
-	}
-	logp.Debug("Collect", "Successfully sent ReadRequest")
+	rh := ua.RequestHeader{}
 
-	data := make([]byte, 1000)
-	_, err := session.Read(data)
+	rv := ua.ReadValueID{}
+
+	rv.NodeID = nodeID
+	rv.AttributeID = 0
+	rv.IndexRange = ""
+
+	qn, err := node.BrowseName()
 	if err != nil {
 		return nil, err
 	}
-	logp.Debug("Collect", "Successfully read the response -- now decoding")
-	msg, err := uasc.Decode(data)
+	rv.DataEncoding = qn
+
+	rr := ua.ReadRequest{}
+	rr.MaxAge = 2000
+	rr.NodesToRead = []*ua.ReadValueID{&rv}
+	rr.TimestampsToReturn = ua.TimestampsToReturnBoth
+	rr.RequestHeader = &rh
+
+	m, err := client.Read(&rr)
 	if err != nil {
 		return nil, err
 	}
-	logp.Debug("Collect", "Decoding done. Raw message: %v", msg)
-
-	switch m := msg.Service.(type) {
-	case *services.ReadResponse:
-		value, status := handleReadResponse(m)
-		if value == nil {
-			return nil, errors.New("It looks like there was an error while getting the last chunk of data. Let's try to reconnect.")
-		}
-		retVal["Node"] = node.ID
-		retVal["Value"] = value.Value
-		retVal["Status"] = status
-		retVal["Value_Timestamp"] = m.Timestamp
-	default:
-		logp.Debug("Collect", "Response type unknown")
+	value, status := handleReadResponse(m)
+	if value == nil {
+		return nil, errors.New("It looks like there was an error while getting the last chunk of data. Let's try to reconnect.")
 	}
+	retVal["Node"] = node.ID
+	retVal["Value"] = value.Value
+	retVal["Status"] = status
+	retVal["Value_Timestamp"] = m.ResponseHeader.Timestamp
 	logp.Debug("Collect", "Data collection done")
 
 	return retVal, nil
 }
 
-func handleReadResponse(resp *services.ReadResponse) (value *datatypes.Variant, status uint32) {
+func handleReadResponse(resp *ua.ReadResponse) (value *ua.Variant, status uint32) {
 	//TODO: Return array of values not only the first one
-	for _, r := range resp.Results.DataValues {
+	//logp.Info("Results: %v", resp.ResponseHeader)
+	for _, r := range resp.Results {
+		logp.Info("Result: %v", r)
+		logp.Info("Value: %v", r.Value)
 		return r.Value, r.Status
 	}
 	return nil, 0
 }
 
 func closeConnection() {
-	session.Close()
-	secChan.Close()
 	client.Close()
 	logp.Debug("Collect", "Successfully shutdown connection")
 	connected = false
