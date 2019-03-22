@@ -1,6 +1,9 @@
 # Machinebeat
 
-Welcome to Machinebeat.
+Welcome to Machinebeat. This beat collects data from OPCUA servers and forward the results to an Elasticcluster of your choice. Use Kibana to visualize the data.
+
+You don't have an Elasticcluster up and running!
+Use [Elasticsearch Service](https://www.elastic.co/cloud/elasticsearch-service/signup)
 
 Ensure that this folder is at the following location:
 `${GOPATH}/src/github.com/felix-lessoer/machinebeat`
