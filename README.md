@@ -2,7 +2,7 @@
 
 Welcome to Machinebeat. This beat collects data from OPCUA servers and forward the results to an Elastic cluster of your choice. Use Kibana to visualize the data.
 
-You don't have an Elastic cluster up and running!
+You don't have an Elastic cluster up and running?
 Use [Elasticsearch Service](https://www.elastic.co/cloud/elasticsearch-service/signup)
 
 Ensure that this folder is at the following location:
