@@ -21,8 +21,8 @@ func connect(endpointURL string) error {
 	endpoint = endpointURL
 	if !connected {
 		logp.Info("Connecting to %v", endpoint)
-		client = opcua.NewClient(endpoint, nil)
-		if err := client.Open(); err != nil {
+		client = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
+		if err := client.Connect(); err != nil {
 			return err
 		}
 		connected = true
@@ -47,36 +47,28 @@ func collectData(nodeConfig config.Node) (map[string]interface{}, error) {
 		logp.Debug("Collect", "Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
 	}
 	node = client.Node(nodeID)
+	logp.Info("Building the request")
+	req := &ua.ReadRequest{
+		MaxAge: 2000,
+		NodesToRead: []*ua.ReadValueID{
+			&ua.ReadValueID{NodeID: nodeID},
+		},
+		TimestampsToReturn: ua.TimestampsToReturnBoth,
+	}
 
-	rh := ua.RequestHeader{}
-
-	rv := ua.ReadValueID{}
-
-	rv.NodeID = nodeID
-	rv.AttributeID = 0
-	rv.IndexRange = ""
-
-	qn, err := node.BrowseName()
+	logp.Info("Sending request")
+	m, err := client.Read(req)
 	if err != nil {
 		return nil, err
 	}
-	rv.DataEncoding = qn
 
-	rr := ua.ReadRequest{}
-	rr.MaxAge = 2000
-	rr.NodesToRead = []*ua.ReadValueID{&rv}
-	rr.TimestampsToReturn = ua.TimestampsToReturnBoth
-	rr.RequestHeader = &rh
-
-	m, err := client.Read(&rr)
-	if err != nil {
-		return nil, err
-	}
+	logp.Info("Evaluating response")
 	value, status := handleReadResponse(m)
 	if value == nil {
 		return nil, errors.New("It looks like there was an error while getting the last chunk of data. Let's try to reconnect.")
 	}
-	retVal["Node"] = node.ID
+	nodeName, err := node.DisplayName()
+	retVal["Node"] = nodeName.Text
 	retVal["Value"] = value.Value
 	retVal["Status"] = status
 	retVal["Value_Timestamp"] = m.ResponseHeader.Timestamp
@@ -85,12 +77,9 @@ func collectData(nodeConfig config.Node) (map[string]interface{}, error) {
 	return retVal, nil
 }
 
-func handleReadResponse(resp *ua.ReadResponse) (value *ua.Variant, status uint32) {
+func handleReadResponse(resp *ua.ReadResponse) (value *ua.Variant, status ua.StatusCode) {
 	//TODO: Return array of values not only the first one
-	//logp.Info("Results: %v", resp.ResponseHeader)
 	for _, r := range resp.Results {
-		logp.Info("Result: %v", r)
-		logp.Info("Value: %v", r.Value)
 		return r.Value, r.Status
 	}
 	return nil, 0
