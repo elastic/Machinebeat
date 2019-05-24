@@ -1,8 +1,6 @@
 package beater
 
 import (
-	"errors"
-
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/felix-lessoer/machinebeat/config"
 
@@ -15,6 +13,11 @@ var (
 	endpoint  string
 	connected = false
 )
+
+type ResponseObject struct {
+	node  config.Node
+	value *ua.DataValue
+}
 
 func connect(endpointURL string) error {
 	var err error
@@ -31,58 +34,56 @@ func connect(endpointURL string) error {
 	return err
 }
 
-func collectData(nodeConfig config.Node) (map[string]interface{}, error) {
-	logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", nodeConfig.ID, nodeConfig.Namespace)
+func collectData(nodeCollection []config.Node) ([]ResponseObject, error) {
 
-	var retVal = make(map[string]interface{})
-	var nodeID *ua.NodeID
-	var node *opcua.Node
+	var retVal []ResponseObject
+	var nodesToRead []*ua.ReadValueID
+	var readValueID *ua.ReadValueID
 
-	switch v := nodeConfig.ID.(type) {
-	case int:
-		nodeID = ua.NewNumericNodeID(nodeConfig.Namespace, nodeConfig.ID.(uint32))
-	case string:
-		nodeID = ua.NewStringNodeID(nodeConfig.Namespace, nodeConfig.ID.(string))
-	default:
-		logp.Debug("Collect", "Configured node id %v has not a valid type. int and string is allowed. %v provided", node.ID, v)
+	logp.Debug("Collect", "Building the request")
+	for _, nodeConfig := range nodeCollection {
+		logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", nodeConfig.ID, nodeConfig.Namespace)
+		readValueID = new(ua.ReadValueID)
+		switch v := nodeConfig.ID.(type) {
+		case int:
+			nodeID := *ua.NewNumericNodeID(nodeConfig.Namespace, nodeConfig.ID.(uint32))
+			readValueID.NodeID = &nodeID
+		case string:
+			nodeID := *ua.NewStringNodeID(nodeConfig.Namespace, nodeConfig.ID.(string))
+			readValueID.NodeID = &nodeID
+		default:
+			logp.Warn("Configured node id %v has not a valid type. int and string is allowed. %v provided. ID will be ignored", nodeConfig.ID, v)
+			continue
+		}
+
+		nodesToRead = append(nodesToRead, readValueID)
+
 	}
-	node = client.Node(nodeID)
-	logp.Info("Building the request")
+
 	req := &ua.ReadRequest{
-		MaxAge: 2000,
-		NodesToRead: []*ua.ReadValueID{
-			&ua.ReadValueID{NodeID: nodeID},
-		},
+		MaxAge:             2000,
+		NodesToRead:        nodesToRead,
 		TimestampsToReturn: ua.TimestampsToReturnBoth,
 	}
 
-	logp.Info("Sending request")
+	logp.Debug("Collect", "Sending request")
 	m, err := client.Read(req)
 	if err != nil {
-		return nil, err
+		return retVal, err
 	}
 
-	logp.Info("Evaluating response")
-	value, status := handleReadResponse(m)
-	if value == nil {
-		return nil, errors.New("It looks like there was an error while getting the last chunk of data. Let's try to reconnect.")
+	logp.Debug("Collect", "Evaluating response")
+
+	for index, node := range nodeCollection {
+		var response ResponseObject
+		response.node = node
+		response.value = m.Results[index]
+		retVal = append(retVal, response)
 	}
-	nodeName, err := node.DisplayName()
-	retVal["Node"] = nodeName.Text
-	retVal["Value"] = value.Value
-	retVal["Status"] = status
-	retVal["Value_Timestamp"] = m.ResponseHeader.Timestamp
+
 	logp.Debug("Collect", "Data collection done")
 
 	return retVal, nil
-}
-
-func handleReadResponse(resp *ua.ReadResponse) (value *ua.Variant, status ua.StatusCode) {
-	//TODO: Return array of values not only the first one
-	for _, r := range resp.Results {
-		return r.Value, r.Status
-	}
-	return nil, 0
 }
 
 func closeConnection() {

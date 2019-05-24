@@ -11,6 +11,7 @@ type Config struct {
 	Endpoint          string        `config:"endpoint"`
 	Nodes             []Node        `config:"nodes"`
 	RetryOnErrorCount int           `config:"retryOnError"`
+	MaxThreads        int           `config:"maxThreads"`
 }
 
 type Node struct {
@@ -23,4 +24,5 @@ var DefaultConfig = Config{
 	Period:            1 * time.Second,
 	Endpoint:          "opc.tcp://localhost:4840",
 	RetryOnErrorCount: 5,
+	MaxThreads:        50,
 }

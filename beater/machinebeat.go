@@ -2,7 +2,6 @@ package beater
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/elastic/beats/libbeat/beat"
@@ -20,6 +19,7 @@ type Machinebeat struct {
 }
 
 var collectorError = false
+var threadCounter = 0
 
 // New creates an instance of machinebeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
@@ -70,7 +70,11 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 			return nil
 		case <-ticker.C:
 			if connected {
-				go collect(bt, b)
+				if threadCounter < bt.config.MaxThreads {
+					go collect(bt, b)
+				} else {
+					logp.Err("Max threads reached. This means that it takes too long to get the data from your OPC UA server. You should consider to increase the max Thread counter or the period of getting the data.")
+				}
 			} else {
 				//It seems that there was an error, we will try to reconnect
 				logp.Info("Lets wait a while before reconnect happens")
@@ -87,6 +91,7 @@ func (bt *Machinebeat) Run(b *beat.Beat) error {
 }
 
 func collect(bt *Machinebeat, b *beat.Beat) error {
+	threadCounter = threadCounter + 1
 	logp.Debug("Collector", "Event collector instance started")
 	event := beat.Event{
 		Timestamp: time.Now(),
@@ -94,23 +99,29 @@ func collect(bt *Machinebeat, b *beat.Beat) error {
 			"type": b.Info.Name,
 		},
 	}
-	for _, node := range bt.config.Nodes {
-		data, err := collectData(node)
-		if err != nil {
-			logp.Info("error: %v", err)
-			logp.Error(err)
-			connected = false
-			return err
-		}
-
-		for name, value := range data {
-			var fieldId = []string{node.Label, name}
-			event.Fields.Put(strings.Join(fieldId, "."), value)
-		}
+	data, err := collectData(bt.config.Nodes)
+	if err != nil {
+		logp.Info("error: %v", err)
+		logp.Error(err)
+		connected = false
+		return err
 	}
+	for _, response := range data {
+		event.Fields.Put("event.dataset", "NodeValue")
+		event.Fields.Put("event.module", "OPCUA")
+		if response.value.Status == 0 {
+			event.Fields.Put("service.state", "OK")
+		} else {
+			event.Fields.Put("service.state", "ERROR")
+		}
+		event.Fields.Put("event.created", response.value.SourceTimestamp.String())
+		event.Fields.Put("OPCUA.value", response.value.Value.Value)
+		event.Fields.Put("OPCUA.node", response.node.Label)
+	}
+
 	bt.client.Publish(event)
-	//event = beat.Event{}
 	logp.Debug("Collector", "Event collector instance finished sucessfully.")
+	threadCounter = threadCounter - 1
 	return nil
 }
 
