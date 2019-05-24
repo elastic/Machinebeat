@@ -53,7 +53,7 @@ Ensure that this folder is at the following location:
 
 ### Requirements
 
-* [Golang](https://golang.org/dl/) 1.7
+* [Golang](https://golang.org/dl/) 1.12
 
 ### Init Project
 To get running with Machinebeat and also install the
