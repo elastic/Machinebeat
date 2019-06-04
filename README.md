@@ -54,6 +54,7 @@ Ensure that this folder is at the following location:
 ### Requirements
 
 * [Golang](https://golang.org/dl/) 1.12
+* [Elastic Stack](https://cloud.elastic.co) >v7.0
 
 ### Init Project
 To get running with Machinebeat and also install the
