@@ -41,15 +41,20 @@ Use [Elasticsearch Service](https://www.elastic.co/cloud/elasticsearch-service/s
 ## Getting Started with Machinebeat
 
 You can run the .exe directly if you are running on a windows system.
+I also added a linux binary. Just run it from your command line.
+Use -e to see the log output.
+```
+machinebeat.exe -e
+```
 
-For linux you need to compile to your environment.
-
+If it not works in your environment you need to compile to your environment:
 Ensure that this folder is at the following location:
 `${GOPATH}/src/github.com/felix-lessoer/machinebeat`
 
 ### Requirements
 
-* [Golang](https://golang.org/dl/) 1.7
+* [Golang](https://golang.org/dl/) 1.12
+* [Elastic Stack](https://cloud.elastic.co) >v7.0
 
 ### Init Project
 To get running with Machinebeat and also install the
