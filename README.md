@@ -6,15 +6,15 @@ What is a beat? A beat is a lightweight data shipper written in GOLANG developed
 
 The aim of machinebeat is, to build a leightweight data shipper that is able to pull metrics from machines used in industrial  environments and ship it to Elasticsearch or have [Logstash](https://www.elastic.co/products/logstash) or a message queue like [Kafka](https://kafka.apache.org/) inbetween, depending on the use case and architecture.
 
-In first place Machinebeat is able to connect to [OPC-UA](https://opcfoundation.org/) Servers or other [PLCs](https://en.wikipedia.org/wiki/Programmable_logic_controller) to pull data in real-time, feeding it into Elasticsearch for near real-time monitoring purpose. This will enable machine operators to see behavior of their machines and analyse important metric on the fly. More about OPC-UA can also be found on [Wikipedia](https://en.wikipedia.org/wiki/OPC_Unified_Architecture)
+In first place Machinebeat is able to connect to [OPC-UA](https://opcfoundation.org/) Servers, MQTT Broker or other [PLCs](https://en.wikipedia.org/wiki/Programmable_logic_controller) to pull data in real-time, feeding it into Elasticsearch for near real-time monitoring purpose. This will enable machine operators to see behavior of their machines and analyse important metric on the fly. More about OPC-UA can also be found on [Wikipedia](https://en.wikipedia.org/wiki/OPC_Unified_Architecture)
 
 Machinebeat uses the [GOPCUA](https://github.com/gopcua/opcua) project to connect and pull data from OPS-UA servers. GOPCUA is an implementation of the OPC-UA specification written in GOLANG.
 
 The ability to get machine metrics and other related information is a foundation for maintenance, quality assurance and optimization of industry 4.0 environments. It can help to see possible issues early in the production cylce or optimize the use of incredients for the products produced. There are many other problems that can be solved monitoring machine metrics once they can be derived from them.
 
-In a future version Machinebeat is supposed to support additional protocols like MQTT in order to cover a broader mix of different sensor metrics in the industry.
+In a future version Machinebeat is supposed to support additional protocols in order to cover a broader mix of different sensor metrics in the industry.
 
-The current prototype is able to read nodes from an [OPC-UA address space](https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-3-address-space-model/) specified in the machinebeat.yml file from Servers and transfer the collected data to Elasticsearch directly or via Logstash. The nodes and its leafs have to be specified in the above mentioned YAML file like this:
+The current prototype is able to read nodes from an [OPC-UA address space](https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-3-address-space-model/) specified in the modules.d/opcua.yml file from Servers and transfer the collected data to Elasticsearch directly or via Logstash. The nodes and its leafs have to be specified in the above mentioned YAML file like this:
 
 ```
 #The URL of your OPC UA Server
