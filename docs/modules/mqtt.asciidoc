@@ -1,0 +1,39 @@
+////
+This file is generated! See scripts/mage/docs_collector.go
+////
+
+[[machinebeat2-module-mqtt]]
+== mqtt module
+
+beta[]
+
+This is the mqtt module.
+
+
+
+[float]
+=== Example configuration
+
+The mqtt module supports the standard configuration options that are described
+in <<configuration-machinebeat2>>. Here is an example configuration:
+
+[source,yaml]
+----
+machinebeat2.modules:
+- module: mqtt
+  metricsets: ["mqtt"]
+  enabled: false
+  period: 10s
+  hosts: ["localhost"]
+
+----
+
+[float]
+=== Metricsets
+
+The following metricsets are available:
+
+* <<machinebeat2-metricset-mqtt-mqtt,mqtt>>
+
+include::mqtt/mqtt.asciidoc[]
+

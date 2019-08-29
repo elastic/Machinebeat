@@ -1,0 +1,10 @@
+- key: mqtt
+  title: "mqtt"
+  release: beta
+  description: >
+    mqtt module
+  fields:
+    - name: mqtt
+      type: group
+      description: >
+      fields:

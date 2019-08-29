@@ -1,7 +1,2 @@
-/.idea
-/build
-
-.DS_Store
-/machinebeat.test
-machinebeat_bk.yml
-*.pyc
+# Directories
+build

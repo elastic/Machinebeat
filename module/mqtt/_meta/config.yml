@@ -1,0 +1,6 @@
+- module: mqtt
+  metricsets: ["mqtt"]
+  enabled: false
+  period: 10s
+  hosts: ["localhost"]
+

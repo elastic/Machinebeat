@@ -1,0 +1,15 @@
+# Module: mqtt
+# Docs: https://www.elastic.co/guide/en/beats/machinebeat/machinebeat-module-mqtt.html
+
+- module: mqtt
+  metricsets: ["topic"]
+  enabled: true
+  period: 10s
+  host: "broker.hivemq.com:1883"
+  topics: ["test/#"]
+  decode_payload: true
+  #qos
+  #user: ""
+  #password: ""
+  
+

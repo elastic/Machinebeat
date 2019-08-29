@@ -1,0 +1,17 @@
+////
+This file is generated! See scripts/mage/docs_collector.go
+////
+
+[options="header"]
+|===
+|Modules   |Dashboards   |Metricsets   
+|<<machinebeat2-module-mqtt,mqtt>>  beta[]   |image:./images/icon-no.png[No prebuilt dashboards]    |  
+.1+| .1+|  |<<machinebeat2-metricset-mqtt-mqtt,mqtt>> beta[]  
+|<<machinebeat2-module-opcua,opcua>>  beta[]   |image:./images/icon-no.png[No prebuilt dashboards]    |  
+.1+| .1+|  |<<machinebeat2-metricset-opcua-opcua,opcua>> beta[]  
+|===
+
+--
+
+include::modules/mqtt.asciidoc[]
+include::modules/opcua.asciidoc[]

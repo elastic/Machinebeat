@@ -1,0 +1,10 @@
+- name: opcua
+  type: group
+  release: beta
+  description: >
+    opcua
+  fields:
+    - name: example
+      type: keyword
+      description: >
+        Example field

@@ -1,0 +1,10 @@
+- name: mqtt
+  type: group
+  release: beta
+  description: >
+    mqtt
+  fields:
+    - name: example
+      type: keyword
+      description: >
+        Example field

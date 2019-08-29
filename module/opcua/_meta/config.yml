@@ -1,0 +1,6 @@
+- module: opcua
+  metricsets: ["opcua"]
+  enabled: false
+  period: 10s
+  hosts: ["localhost"]
+

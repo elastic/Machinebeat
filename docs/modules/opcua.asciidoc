@@ -1,0 +1,39 @@
+////
+This file is generated! See scripts/mage/docs_collector.go
+////
+
+[[machinebeat2-module-opcua]]
+== opcua module
+
+beta[]
+
+This is the opcua module.
+
+
+
+[float]
+=== Example configuration
+
+The opcua module supports the standard configuration options that are described
+in <<configuration-machinebeat2>>. Here is an example configuration:
+
+[source,yaml]
+----
+machinebeat2.modules:
+- module: opcua
+  metricsets: ["opcua"]
+  enabled: false
+  period: 10s
+  hosts: ["localhost"]
+
+----
+
+[float]
+=== Metricsets
+
+The following metricsets are available:
+
+* <<machinebeat2-metricset-opcua-opcua,opcua>>
+
+include::opcua/opcua.asciidoc[]
+
