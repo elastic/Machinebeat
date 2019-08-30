@@ -25,13 +25,16 @@ var (
 func setupMqttClient(m *MetricSet) {
 	mqttClientOpt := MQTT.NewClientOptions()
 	mqttClientOpt.AddBroker(m.BrokerURL)
-	logp.Info("BROKER url: %s", m.BrokerURL)
+	logp.Info("[MQTT] Connect to broker URL: %s", m.BrokerURL)
 	mqttClientOpt.SetConnectionLostHandler(reConnectHandler)
 	mqttClientOpt.SetOnConnectHandler(subscribeOnConnect)
 
-	if m.BrokerUsername != "" && m.BrokerPassword != "" {
-		logp.Info("BROKER username: %s", m.BrokerUsername)
+	if m.BrokerUsername != "" {
+		logp.Info("[MQTT] Broker username: %s", m.BrokerUsername)
 		mqttClientOpt.SetUsername(m.BrokerUsername)
+	}
+
+	if m.BrokerPassword != "" {
 		mqttClientOpt.SetPassword(m.BrokerPassword)
 	}
 
@@ -48,7 +51,7 @@ func connect(client MQTT.Client) {
 			reConnectHandler(client, token.Error())
 			return
 		}
-		connected = true
+		connected = client.IsConnected()
 		logp.Info("MQTT Client connected: %t", client.IsConnected())
 	}
 }
@@ -71,20 +74,23 @@ func onMessage(client MQTT.Client, msg MQTT.Message) {
 	var mbEvent mb.Event
 	event := make(common.MapStr)
 
+	// default case
+	event["message.content"] = string(msg.Payload())
 	if config.DecodePaylod == true {
-		event = DecodePayload(msg.Payload())
-	} else {
-		event["message"] = msg.Payload()
+		event["message.fields"] = DecodePayload(msg.Payload())
 	}
+
 	if strings.HasPrefix(msg.Topic(), "$") {
 		event["isSystemTopic"] = true
 	} else {
 		event["isSystemTopic"] = false
 	}
-	event["name"] = msg.Topic()
+	event["topic"] = msg.Topic()
+	event["message.ID"] = msg.MessageID()
+	event["message.retained"] = msg.Retained()
 
 	// Finally sending the message to elasticsearch
-	mbEvent.MetricSetFields = event
+	mbEvent.ModuleFields = event
 	events <- mbEvent
 
 	logp.Debug("MQTT Modul", "Event sent: %t")
@@ -92,7 +98,7 @@ func onMessage(client MQTT.Client, msg MQTT.Message) {
 
 // DefaultConnectionLostHandler does nothing
 func reConnectHandler(client MQTT.Client, reason error) {
-	logp.Warn("Connection lost: %s", reason.Error())
+	logp.Warn("[MQTT] Connection lost: %s", reason.Error())
 	connected = false
 	connect(client)
 }
@@ -101,9 +107,6 @@ func reConnectHandler(client MQTT.Client, reason error) {
 // return the payload as a string
 func DecodePayload(payload []byte) common.MapStr {
 	event := make(common.MapStr)
-
-	// default case
-	event["message"] = string(payload)
 
 	// A msgpack payload must be a json-like object
 	err := msgpack.Unmarshal(payload, &event)

@@ -73,6 +73,7 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 	for {
 		select {
 		case event := <-events:
+			event.ModuleFields["broker"] = m.BrokerURL
 			report.Event(event)
 		default:
 			return nil
