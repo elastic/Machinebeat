@@ -39,13 +39,71 @@ You don't have an Elastic cluster up and running?
 Use [Elasticsearch Service](https://www.elastic.co/cloud/elasticsearch-service/signup)
 
 ## Getting Started with Machinebeat
+To start quickly and easy use the pre build binaries shared in this repo!
+To get started choose the version that fits for your environment.
 
-You can run the .exe directly if you are running on a windows system.
-I also added a linux binary. Just run it from your command line.
+### Linux
+Download the latest version of the binary here:
+https://ela.st/machinebeat-linux
+
+Start the beat with the following command in your terminal.
+```
+./machinebeat -e -c machinebeat.yml
+```
 Use -e to see the log output.
+Use -c to set a different config file.
+
+### Windows
+
+Download the latest version of the binary here:
+https://elas.st/machinebeat-windows
+
+Start the beat with the following command in your CMD or PowerShell. There is also a PowerShell Script to add the beat as a service.
 ```
-machinebeat.exe -e
+machinebeat.exe -e -c machinebeat.yml
 ```
+Use -e to see the log output.
+Use -c to set a different config file.
+
+### Configurations
+
+#### MQTT Module
+To enable the MQTT Module rename the file modules.d/mqtt.yml.disabled to modules.d/mqtt.yml
+Change the configuration based on your needs. It works with every MQTT Broker and also IoT Cloud Services.
+
+Example configuration to collect from AWS IoT core:
+```
+- module: mqtt
+  metricsets: ["topic"]
+  enabled: true
+  period: 1s
+  host: "tcps://<yourAWSEndpoint>:8883/mqtt"
+  clientID: "<yourAWSclientID>"
+  topics: ["#"]
+  decode_payload: true
+  ssl: true
+  CA: "<pathToAWSRootCA>"
+  clientCert: "<pathToAWSyourIoTCertificate>"
+  clientKey: ""<pathToAWSyourIoTPrivateKey>""
+```
+Your client id from IoT console -> things:
+arn:aws:iot:us-east-2:<AWS account>:thing/<clientID>
+  
+Make sure your certificate has to correct policys attached:
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:*",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## How to build on your own env
 
 If it not works in your environment you need to compile to your environment:
 Ensure that this folder is at the following location:
