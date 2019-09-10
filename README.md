@@ -101,9 +101,11 @@ Example configuration to collect from AWS IoT core:
   clientKey: ""<pathToAWSyourIoTPrivateKey>""
 ```
 Your client id from IoT console -> things:
+```
 arn:aws:iot:us-east-2:<AWS account>:thing/<clientID>
+```
   
-Make sure your certificate has to correct policys attached:
+Make sure your certificate has correct policies attached:
 ```
 {
   "Version": "2012-10-17",
