@@ -1,0 +1,28 @@
+# Module: opcua
+# Docs: https://www.elastic.co/guide/en/beats/machinebeat//machinebeat-module-opcua.html
+
+- module: opcua
+  metricsets: ["nodevalue"]
+  enabled: true
+  period: 2s
+  
+  #The URL of your OPC UA Server
+  endpoint: "opc.tcp://milo.digitalpetri.com:62541/milo"
+  
+  ##The subscribe mode collects one event whenever there is a change of the value.
+  ## All collected events will be send after the configured period
+  ## If you turn this off the beat will pull the current value after each period.
+  #subscribe: true
+  
+  ##How often we should retry to connect to the opcua server
+  #retryOnError: 5
+
+  ##How many collect threads should be opened. This is only relevant for non subscription mode.  
+  ## This limit can be reached when it takes longer to get a value than it is configured with period. 
+  #maxThreads: 50
+
+  nodes:
+  -  ns: 2
+     id: "Dynamic/RandomDouble"
+     label: "Random Double"
+

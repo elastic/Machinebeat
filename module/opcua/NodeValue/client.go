@@ -19,6 +19,7 @@ var (
 	subscription chan *ResponseObject
 	endpoint     string
 	connected    = false
+	subscribedTo = make(map[string]bool)
 )
 
 type ResponseObject struct {
@@ -37,20 +38,20 @@ func connect(endpointURL string) error {
 	var err error
 	endpoint = endpointURL
 	if !connected {
-		logp.Info("Connecting to %v", endpoint)
+		logp.Info("[OPCUA] Connecting to %v", endpoint)
 		ctx := context.Background()
 		client = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 		if err := client.Connect(ctx); err != nil {
 			return err
 		}
 		connected = true
-		logp.Info("Connection established")
+		logp.Info("[OPCUA] Connection established")
 	}
 	return err
 }
 
 func browse(nodeCollection []Node) ([]string, error) {
-	logp.Info("Start browsing")
+	logp.Info("[OPCUA] Start browsing")
 
 	var nodeList []string
 
@@ -75,16 +76,16 @@ func doBrowse(n *opcua.Node, path string, level int) ([]string, error) {
 		return nil, nil
 	}
 
-	logp.Info("Extract browseName")
+	logp.Info("[OPCUA] Extract browseName")
 	browseName, err := n.BrowseName()
 	if err != nil {
-		logp.Info("Error at browsing: %v", err)
+		logp.Info("[OPCUA] Error at browsing: %v", err)
 		logp.Error(err)
 		return nil, err
 	}
 	path = join(path, browseName.Name)
 
-	logp.Info("Browsing %v under %v", browseName.Name, path)
+	logp.Info("[OPCUA] Browsing %v under %v", browseName.Name, path)
 
 	typeDefs := ua.NewTwoByteNodeID(id.HasTypeDefinition)
 	refs, err := n.References(typeDefs)
@@ -93,7 +94,7 @@ func doBrowse(n *opcua.Node, path string, level int) ([]string, error) {
 	}
 	for _, ref := range refs.Results {
 		for _, refDesc := range ref.References {
-			logp.Info("New node detected: %v", refDesc.DisplayName.Text)
+			logp.Info("[OPCUA] New node detected: %v", refDesc.DisplayName.Text)
 			if refDesc.NodeClass != ua.NodeClassVariable {
 				doBrowse(client.Node(refDesc.ReferenceTypeID), path, level+1)
 			}
@@ -128,7 +129,7 @@ func getNodeID(ns uint16, id interface{}) (*ua.NodeID, *ua.ReadValueID) {
 		readValueID.NodeID = &nodeID
 		return &nodeID, readValueID
 	default:
-		logp.Warn("Configured node id %v has not a valid type. int and string is allowed. %v provided. ID will be ignored", id, v)
+		logp.Warn("[OPCUA] Configured node id %v has not a valid type. int and string is allowed. %v provided. ID will be ignored", id, v)
 	}
 
 	return nil, nil
@@ -174,7 +175,8 @@ func collectData(nodeCollection []Node) ([]*ResponseObject, error) {
 }
 
 func startSubscription(nodeCollection []Node) {
-	logp.Info("Starting subscribe process")
+	logp.Info("[OPCUA] Starting subscribe process")
+
 	ctx := context.Background()
 
 	m, err := monitor.NewNodeMonitor(client)
@@ -183,21 +185,25 @@ func startSubscription(nodeCollection []Node) {
 	}
 
 	m.SetErrorHandler(func(_ *opcua.Client, sub *monitor.Subscription, err error) {
-		logp.Warn("Error on monitoring channel: sub=%d err=%s", sub.SubscriptionID(), err.Error())
+		logp.Warn("[OPCUA] Error on monitoring channel: sub=%d err=%s", sub.SubscriptionID(), err.Error())
 	})
 
 	// start channel-based subscription
 	var nodes []string
 	for _, nodeConfig := range nodeCollection {
+		if subscribedTo[nodeConfig.ID.(string)] {
+			continue
+		}
 		nodes = append(nodes, "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string))
+		subscribedTo[nodeConfig.ID.(string)] = true
 	}
-	go startChanSub(ctx, m, 0, nodes...)
-
-	logp.Info("Finished subscribe process")
+	if len(nodes) > 0 {
+		go startChanSub(ctx, m, 0, nodes...)
+	}
 }
 
 func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, nodes ...string) {
-	logp.Info("Subscribe to nodes: %v", nodes)
+	logp.Info("[OPCUA] Subscribe to nodes: %v", nodes)
 
 	ch := make(chan *monitor.DataChangeMessage, 16)
 	subscription = make(chan *ResponseObject, 500)
@@ -216,12 +222,11 @@ func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration
 			return
 		case msg := <-ch:
 			if msg.Error != nil {
-				logp.Err("[channel ] sub=%d error=%s", sub.SubscriptionID(), msg.Error)
+				logp.Warn("[OPCUA] channel-sub=%d error=%s", sub.SubscriptionID(), msg.Error)
 			} else {
 				var response ResponseObject
 				response.node.ID = msg.NodeID.String()
 				response.node.Namespace = msg.NodeID.Namespace()
-				response.node.Label = msg.NodeID.String()
 				response.value = msg.DataValue
 				subscription <- &response
 
@@ -229,11 +234,11 @@ func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration
 			time.Sleep(lag)
 		}
 	}
-	logp.Info("Subscribe to nodes done")
+	logp.Info("[OPCUA] Subscribe to nodes done")
 }
 
 func cleanup(sub *monitor.Subscription) {
-	log.Printf("stats: sub=%d delivered=%d dropped=%d", sub.SubscriptionID(), sub.Delivered(), sub.Dropped())
+	log.Printf("[OPCUA] Subscribe Stats: sub=%d delivered=%d dropped=%d", sub.SubscriptionID(), sub.Delivered(), sub.Dropped())
 	sub.Unsubscribe()
 }
 

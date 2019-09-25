@@ -26,16 +26,26 @@ type MetricSet struct {
 	TopicsSubscribe []string `config:"topics"`
 	QoS             int      `config:"QoS"`
 	DecodePaylod    bool     `config:"decode_payload"`
+	SSL             bool     `config:"ssl"`
+	CA              string   `config:"CA"`
+	ClientCert      string   `config:"clientCert"`
+	ClientKey       string   `config:"clientKey"`
+	ClientID        string   `config:"clientID"`
 }
 
 var (
 	DefaultConfig = MetricSet{
 		BrokerURL:       "localhost",
+		ClientID:        "Machinebeat",
 		BrokerUsername:  "",
 		BrokerPassword:  "",
 		TopicsSubscribe: []string{"#"},
 		DecodePaylod:    true,
 		QoS:             0,
+		SSL:             false,
+		CA:              "",
+		ClientCert:      "",
+		ClientKey:       "",
 	}
 )
 
@@ -57,6 +67,11 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		TopicsSubscribe: config.TopicsSubscribe,
 		DecodePaylod:    config.DecodePaylod,
 		QoS:             config.QoS,
+		SSL:             config.SSL,
+		CA:              config.CA,
+		ClientCert:      config.ClientCert,
+		ClientKey:       config.ClientKey,
+		ClientID:        config.ClientID,
 	}
 
 	setupMqttClient(metricset)

@@ -1,6 +1,7 @@
 package nodevalue
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/elastic/beats/libbeat/logp"
@@ -55,7 +56,7 @@ var (
 // New creates a new instance of the MetricSet. New is responsible for unpacking
 // any MetricSet specific configuration options if there are any.
 func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
-	cfgwarn.Beta("The opcua metricset is beta.")
+	cfgwarn.Beta("The OPCUA metricset is beta.")
 
 	config := DefaultConfig
 	if err := base.Module().UnpackConfig(&config); err != nil {
@@ -120,12 +121,12 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 		connected = false
 		return err
 	}
-	publishResponses(data, report)
+	publishResponses(data, report, m)
 	logp.Debug("Collector", "Event collector instance finished sucessfully.")
 	return nil
 }
 
-func publishResponses(data []*ResponseObject, report mb.ReporterV2) {
+func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *MetricSet) {
 	var mbEvent mb.Event
 	event := make(common.MapStr)
 
@@ -137,6 +138,15 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2) {
 		}
 		event.Put("created", response.value.SourceTimestamp.String())
 		event.Put("value", response.value.Value.Value())
+
+		//Map the configured label if its not set already
+		if response.node.Label == "" {
+			for _, nodeConfig := range config.Nodes {
+				if response.node.ID == "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string) {
+					response.node.Label = nodeConfig.Label
+				}
+			}
+		}
 		event.Put("node", response.node.Label)
 	}
 	mbEvent.MetricSetFields = event
@@ -155,7 +165,7 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 				case response := <-subscription:
 					data = append(data, response)
 				default:
-					publishResponses(data, report)
+					publishResponses(data, report, m)
 					return nil
 				}
 			}
