@@ -1,6 +1,6 @@
 # About Machinebeat
 
-Welcome to Machinebeat. The current version of Machinebeat is a well working and tested prototype. It will be developed further over time but can already be used. The downloadable binaries are expected to run without any mayor issues. 
+Welcome to Machinebeat. The current version of Machinebeat is a well working and tested prototype. It will be developed further over time but can already be used. The downloadable binaries are expected to run without any mayor issues. The current state is experimental. Breaking changes are possible in future releases!
 
 What is a beat? A beat is a lightweight data shipper written in GOLANG developed by [Elastic N.V.](https://www.elastic.co) and the community. It is open source and also implements a framework offered to the community to [build their own beats](https://www.elastic.co/guide/en/beats/devguide/current/new-beat.html). Those beats may offer special purpose data collection not offered by [existing beats](https://www.elastic.co/products/beats). Machinebeat is one of those special purpose beats.
 
@@ -123,7 +123,7 @@ Make sure your certificate has correct policies attached:
 
 If it not works in your environment you need to compile to your environment:
 Ensure that this folder is at the following location:
-`${GOPATH}/src/github.com/felix-lessoer/machinebeat`
+`${GOPATH}/src/github.com/elastic/machinebeat`
 
 ### Requirements
 
@@ -143,7 +143,7 @@ It will create a clean git history for each major step. Note that you can always
 To push Machinebeat in the git repository, run the following commands:
 
 ```
-git remote set-url origin https://github.com/felix-lessoer/machinebeat
+git remote set-url origin https://github.com/elastic/machinebeat
 git push origin master
 ```
 
@@ -216,8 +216,8 @@ make clean
 To clone Machinebeat from the git repository, run the following commands:
 
 ```
-mkdir -p ${GOPATH}/src/github.com/felix-lessoer/machinebeat
-git clone https://github.com/felix-lessoer/machinebeat ${GOPATH}/src/github.com/felix-lessoer/machinebeat
+mkdir -p ${GOPATH}/src/github.com/elastic/machinebeat
+git clone https://github.com/elastic/machinebeat ${GOPATH}/src/github.com/elastic/machinebeat
 ```
 
 
