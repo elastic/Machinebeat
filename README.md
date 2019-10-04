@@ -38,7 +38,7 @@ Use -c to set a different config file.
 ### Windows
 
 Download the latest version of the binary here:
-https://elas.st/machinebeat-windows
+https://ela.st/machinebeat-windows
 
 Start the beat with the following command in your CMD or PowerShell. There is also a PowerShell Script to add the beat as a service.
 ```
