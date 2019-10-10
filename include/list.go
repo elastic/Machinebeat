@@ -26,8 +26,8 @@ modules.
 package include
 
 import (
-	_ "github.com/felix-lessoer/machinebeat/module/mqtt"
-	_ "github.com/felix-lessoer/machinebeat/module/mqtt/topic"
-	_ "github.com/felix-lessoer/machinebeat/module/opcua"
-	_ "github.com/felix-lessoer/machinebeat/module/opcua/nodevalue"
+	_ "github.com/elastic/machinebeat/module/mqtt"
+	_ "github.com/elastic/machinebeat/module/mqtt/topic"
+	_ "github.com/elastic/machinebeat/module/opcua"
+	_ "github.com/elastic/machinebeat/module/opcua/nodevalue"
 )

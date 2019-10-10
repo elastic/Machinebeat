@@ -4,7 +4,6 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 
 	"github.com/gopcua/opcua"
-	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/monitor"
 	"github.com/gopcua/opcua/ua"
 
@@ -48,59 +47,6 @@ func connect(endpointURL string) error {
 		logp.Info("[OPCUA] Connection established")
 	}
 	return err
-}
-
-func browse(nodeCollection []Node) ([]string, error) {
-	logp.Info("[OPCUA] Start browsing")
-
-	var nodeList []string
-
-	for _, nodeConfig := range nodeCollection {
-		nodeID, _ := getNodeID(nodeConfig.Namespace, nodeConfig.ID)
-		node := client.Node(nodeID)
-
-		nodeList, err := doBrowse(node, "", 0)
-		if err != nil {
-			logp.Error(err)
-			return nil, err
-		}
-		for _, s := range nodeList {
-			logp.Info(s)
-		}
-	}
-	return nodeList, nil
-}
-
-func doBrowse(n *opcua.Node, path string, level int) ([]string, error) {
-	if level > 10 {
-		return nil, nil
-	}
-
-	logp.Info("[OPCUA] Extract browseName")
-	browseName, err := n.BrowseName()
-	if err != nil {
-		logp.Info("[OPCUA] Error at browsing: %v", err)
-		logp.Error(err)
-		return nil, err
-	}
-	path = join(path, browseName.Name)
-
-	logp.Info("[OPCUA] Browsing %v under %v", browseName.Name, path)
-
-	typeDefs := ua.NewTwoByteNodeID(id.HasTypeDefinition)
-	refs, err := n.References(typeDefs)
-	if err != nil {
-		return nil, err
-	}
-	for _, ref := range refs.Results {
-		for _, refDesc := range ref.References {
-			logp.Info("[OPCUA] New node detected: %v", refDesc.DisplayName.Text)
-			if refDesc.NodeClass != ua.NodeClassVariable {
-				doBrowse(client.Node(refDesc.ReferenceTypeID), path, level+1)
-			}
-		}
-	}
-	return nil, nil
 }
 
 func getNodeID(ns uint16, id interface{}) (*ua.NodeID, *ua.ReadValueID) {

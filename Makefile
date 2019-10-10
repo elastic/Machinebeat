@@ -1,5 +1,5 @@
 BEAT_NAME=machinebeat
-BEAT_PATH=github.com/felix-lessoer/machinebeat
+BEAT_PATH=github.com/elastic/machinebeat
 BEAT_GOPATH=$(firstword $(subst :, ,${GOPATH}))
 SYSTEM_TESTS=false
 TEST_ENVIRONMENT=false
