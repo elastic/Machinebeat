@@ -14,4 +14,5 @@ replace (
 	github.com/dop251/goja => github.com/andrewkroh/goja v0.0.0-20190128172624-dd2ac4456e20
 	github.com/elastic/beats => github.com/andrewkroh/beats v0.0.0-20190820143154-8b3f90af6bb3
 	github.com/fsnotify/fsevents => github.com/elastic/fsevents v0.0.0-20181029231046-e1d381a4d270
+	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.1
 )
