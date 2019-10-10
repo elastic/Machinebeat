@@ -10,7 +10,7 @@ import (
 	_ "github.com/elastic/beats/metricbeat/include"
 
 	// Make sure all your modules and metricsets are linked in this file
-	_ "github.com/felix-lessoer/machinebeat/include"
+	_ "github.com/elastic/machinebeat/include"
 )
 
 var settings = instance.Settings{

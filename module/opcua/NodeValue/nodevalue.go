@@ -102,15 +102,6 @@ func establishConnection(endpoint string, retryCounter int) error {
 	return err
 }
 
-func startBrowse(m *MetricSet) error {
-	_, err := browse(m.Nodes)
-	if err != nil {
-		logp.Error(err)
-	}
-	logp.Info("Browsing done")
-	return err
-}
-
 func collect(m *MetricSet, report mb.ReporterV2) error {
 	logp.Debug("Collector", "Event collector instance started")
 
