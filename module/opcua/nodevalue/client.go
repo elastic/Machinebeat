@@ -177,7 +177,6 @@ func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration
 				response.node.Namespace = msg.NodeID.Namespace()
 				response.value = msg.DataValue
 				subscription <- &response
-				logp.Debug("Message", "Content: %v", response)
 			}
 			time.Sleep(lag)
 		}
