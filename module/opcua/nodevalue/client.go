@@ -124,6 +124,7 @@ func startSubscription(nodeCollection []Node) {
 	logp.Info("[OPCUA] Starting subscribe process")
 
 	ctx := context.Background()
+	subscription = make(chan *ResponseObject, 5000)
 
 	m, err := monitor.NewNodeMonitor(client)
 	if err != nil {
@@ -142,17 +143,18 @@ func startSubscription(nodeCollection []Node) {
 		}
 		nodes = append(nodes, "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string))
 		subscribedTo[nodeConfig.ID.(string)] = true
+		if len(nodes) > 0 {
+			go startChanSub(ctx, m, 0, subscription, nodes...)
+		}
+		nodes = nodes[:0]
 	}
-	if len(nodes) > 0 {
-		go startChanSub(ctx, m, 0, nodes...)
-	}
+
 }
 
-func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, nodes ...string) {
+func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, subscription chan *ResponseObject, nodes ...string) {
 	logp.Info("[OPCUA] Subscribe to nodes: %v", nodes)
 
 	ch := make(chan *monitor.DataChangeMessage, 16)
-	subscription = make(chan *ResponseObject, 500)
 
 	//TODO: Save sub to unsubscribe on closing the beat
 	sub, err := m.ChanSubscribe(ctx, ch, nodes...)
