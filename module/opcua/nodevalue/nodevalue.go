@@ -118,10 +118,9 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 }
 
 func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *MetricSet) {
-	var mbEvent mb.Event
-	event := make(common.MapStr)
-
 	for _, response := range data {
+		var mbEvent mb.Event
+		event := make(common.MapStr)
 		if response.value.Status == 0 {
 			event.Put("state", "OK")
 		} else {
@@ -139,9 +138,9 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 			}
 		}
 		event.Put("node", response.node.Label)
+		mbEvent.MetricSetFields = event
+		report.Event(mbEvent)
 	}
-	mbEvent.MetricSetFields = event
-	report.Event(mbEvent)
 }
 
 // Fetch methods implements the data gathering and data conversion to the right

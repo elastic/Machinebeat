@@ -143,15 +143,14 @@ func startSubscription(nodeCollection []Node) {
 		}
 		nodes = append(nodes, "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string))
 		subscribedTo[nodeConfig.ID.(string)] = true
-		if len(nodes) > 0 {
-			go startChanSub(ctx, m, 0, subscription, nodes...)
-		}
-		nodes = nodes[:0]
-	}
 
+	}
+	if len(nodes) > 0 {
+		go startChanSub(ctx, m, 0, nodes...)
+	}
 }
 
-func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, subscription chan *ResponseObject, nodes ...string) {
+func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, nodes ...string) {
 	logp.Info("[OPCUA] Subscribe to nodes: %v", nodes)
 
 	ch := make(chan *monitor.DataChangeMessage, 16)
@@ -173,11 +172,12 @@ func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration
 				logp.Warn("[OPCUA] channel-sub=%d error=%s", sub.SubscriptionID(), msg.Error)
 			} else {
 				var response ResponseObject
+
 				response.node.ID = msg.NodeID.String()
 				response.node.Namespace = msg.NodeID.Namespace()
 				response.value = msg.DataValue
 				subscription <- &response
-
+				logp.Debug("Message", "Content: %v", response)
 			}
 			time.Sleep(lag)
 		}
