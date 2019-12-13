@@ -33,13 +33,46 @@ func join(a, b string) string {
 	return a + "." + b
 }
 
-func connect(endpointURL string) error {
+func connect(config MetricSet) error {
 	var err error
-	endpoint = endpointURL
+
 	if !connected {
-		logp.Info("[OPCUA] Connecting to %v", endpoint)
+		logp.Info("[OPCUA] Get all endpoints from %v", config.Endpoint)
+		endpoints, err := opcua.GetEndpoints(config.Endpoint)
+		if err != nil {
+			logp.Error(err)
+		}
+
+		ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
+		if ep == nil {
+			logp.Err("[OPCUA] Failed to find suitable endpoint. Will switch to default.")
+			endpoint = config.Endpoint
+		} else {
+			endpoint = ep.EndpointURL
+		}
+
+		logp.Info("[OPCUA] Policy URI: %v with security mode %v", ep.SecurityPolicyURI, ep.SecurityMode)
+
+		opts := []opcua.Option{
+			opcua.SecurityPolicy(config.Policy),
+			opcua.SecurityModeString(config.Mode),
+		}
+
+		if config.ClientCert != "" {
+			opts = append(opts, opcua.CertificateFile(config.ClientCert), opcua.PrivateKeyFile(config.ClientKey))
+		}
+
+		if config.Username != "" {
+			logp.Info("[OPCUA] Set authentication information")
+			logp.Info("[OPCUA] User: %v", config.Username)
+			opts = append(opts, opcua.AuthUsername(config.Username, config.Password), opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeUserName))
+		} else {
+			logp.Info("[OPCUA] Set to anonymous login")
+			opts = append(opts, opcua.AuthAnonymous(), opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous))
+		}
+
 		ctx := context.Background()
-		client = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
+		client = opcua.NewClient(endpoint, opts...)
 		if err := client.Connect(ctx); err != nil {
 			return err
 		}

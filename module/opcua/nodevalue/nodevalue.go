@@ -34,6 +34,12 @@ type MetricSet struct {
 	RetryOnErrorCount int    `config:"retryOnError"`
 	MaxThreads        int    `config:"maxThreads"`
 	Subscribe         bool   `config:"subscribe"`
+	Username          string `config:"username"`
+	Password          string `config:"password"`
+	Policy            string `config:"policy"`
+	Mode              string `config:"securityMode"`
+	ClientCert        string `config:"clientCert"`
+	ClientKey         string `config:"clientKey"`
 }
 
 type Node struct {
@@ -47,6 +53,12 @@ var DefaultConfig = MetricSet{
 	RetryOnErrorCount: 5,
 	MaxThreads:        50,
 	Subscribe:         true,
+	Policy:            "",
+	Mode:              "",
+	Username:          "",
+	Password:          "",
+	ClientCert:        "",
+	ClientKey:         "",
 }
 
 var (
@@ -70,9 +82,15 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		RetryOnErrorCount: config.RetryOnErrorCount,
 		MaxThreads:        config.MaxThreads,
 		Subscribe:         config.Subscribe,
+		Username:          config.Username,
+		Password:          config.Password,
+		Policy:            config.Policy,
+		Mode:              config.Mode,
+		ClientCert:        config.ClientCert,
+		ClientKey:         config.ClientKey,
 	}
 
-	err := establishConnection(metricset.Endpoint, 1)
+	err := establishConnection(*metricset, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +107,10 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	return metricset, nil
 }
 
-func establishConnection(endpoint string, retryCounter int) error {
+func establishConnection(config MetricSet, retryCounter int) error {
 	var err error
 	for i := retryCounter; i > 0; i-- {
-		err = connect(endpoint)
+		err = connect(config)
 		if err == nil {
 			return nil
 		}
@@ -175,7 +193,7 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 		//It seems that there was an error, we will try to reconnect
 		logp.Info("Lets wait a while before reconnect happens")
 		time.Sleep(5 * time.Second)
-		err := establishConnection(m.Endpoint, m.RetryOnErrorCount)
+		err := establishConnection(*m, m.RetryOnErrorCount)
 		if err != nil {
 			logp.Info("Reconnect was not successful")
 			return err
