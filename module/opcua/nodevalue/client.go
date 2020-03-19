@@ -16,7 +16,7 @@ import (
 var (
 	client       *opcua.Client
 	subscription chan *ResponseObject
-	endpoint     string
+	endpoint     = ""
 	connected    = false
 	subscribedTo = make(map[string]bool)
 )
@@ -43,6 +43,12 @@ func connect(config MetricSet) error {
 			logp.Error(err)
 		}
 
+		for _, endp := range endpoints {
+			logp.Debug("Endpoints", "Found Endpoint: %v", endp.EndpointURL)
+			logp.Debug("Endpoints", "Security Mode: %v", endp.SecurityMode.String())
+			logp.Debug("Endpoints", "Security Policy: %v", endp.SecurityPolicyURI)
+		}
+
 		ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
 		if ep == nil {
 			logp.Err("[OPCUA] Failed to find suitable endpoint. Will switch to default.")
@@ -59,6 +65,8 @@ func connect(config MetricSet) error {
 		}
 
 		if config.ClientCert != "" {
+			logp.Info("[OPCUA] Set ApplicationDescription (SAN DNS and SAN URL) to %v", config.CN)
+			opts = append(opts, opcua.ApplicationURI(config.CN))
 			opts = append(opts, opcua.CertificateFile(config.ClientCert), opcua.PrivateKeyFile(config.ClientKey))
 		}
 
@@ -155,66 +163,85 @@ func collectData(nodeCollection []Node) ([]*ResponseObject, error) {
 
 func startSubscription(nodeCollection []Node) {
 	logp.Info("[OPCUA] Starting subscribe process")
+	var node string
 
 	ctx := context.Background()
 	subscription = make(chan *ResponseObject, 5000)
 
-	m, err := monitor.NewNodeMonitor(client)
+	subInterval, err := time.ParseDuration("10ms")
 	if err != nil {
-		log.Fatal(err)
+		logp.Error(err)
 	}
 
-	m.SetErrorHandler(func(_ *opcua.Client, sub *monitor.Subscription, err error) {
-		logp.Warn("[OPCUA] Error on monitoring channel: sub=%d err=%s", sub.SubscriptionID(), err.Error())
-	})
-
 	// start channel-based subscription
-	var nodes []string
+	ch := make(chan *opcua.PublishNotificationData)
+
+	sub, err := client.Subscribe(&opcua.SubscriptionParameters{
+		Interval: subInterval,
+	}, ch)
+	if err != nil {
+		logp.Info("Error occured")
+		logp.Error(err)
+		return
+	}
+
+	logp.Info("[OPCUA] Created subscription with id %v", sub.SubscriptionID)
+
 	for _, nodeConfig := range nodeCollection {
+
 		if subscribedTo[nodeConfig.ID.(string)] {
 			continue
 		}
-		nodes = append(nodes, "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string))
+		node = "ns=" + strconv.Itoa(int(nodeConfig.Namespace)) + ";s=" + nodeConfig.ID.(string)
+		logp.Info("[OPCUA] Subscribe to node: %v", node)
+
+		id, err := ua.ParseNodeID(node)
+		if err != nil {
+			logp.Error(err)
+		}
+
+		// arbitrary client handle for the monitoring item
+		handle := uint32(42)
+		miCreateRequest := opcua.NewMonitoredItemCreateRequestWithDefaults(id, ua.AttributeIDValue, handle)
+		res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
+		if err != nil || res.Results[0].StatusCode != ua.StatusOK {
+			logp.Error(err)
+		}
+
 		subscribedTo[nodeConfig.ID.(string)] = true
+		logp.Info("[OPCUA] Subscribe to node done")
 
 	}
-	if len(nodes) > 0 {
-		go startChanSub(ctx, m, 0, nodes...)
-	}
-}
-
-func startChanSub(ctx context.Context, m *monitor.NodeMonitor, lag time.Duration, nodes ...string) {
-	logp.Info("[OPCUA] Subscribe to nodes: %v", nodes)
-
-	ch := make(chan *monitor.DataChangeMessage, 16)
-
-	//TODO: Save sub to unsubscribe on closing the beat
-	sub, err := m.ChanSubscribe(ctx, ch, nodes...)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer cleanup(sub)
-
+	go sub.Run(ctx) // start Publish loop
+	logp.Info("[OPCUA] Start listening")
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case msg := <-ch:
 			if msg.Error != nil {
-				logp.Warn("[OPCUA] channel-sub=%d error=%s", sub.SubscriptionID(), msg.Error)
-			} else {
-				var response ResponseObject
+				logp.Warn("[OPCUA] error=%s", msg.Error)
+				continue
 
-				response.node.ID = msg.NodeID.String()
-				response.node.Namespace = msg.NodeID.Namespace()
-				response.value = msg.DataValue
-				subscription <- &response
 			}
-			time.Sleep(lag)
+
+			switch x := msg.Value.(type) {
+			case *ua.DataChangeNotification:
+				for _, item := range x.MonitoredItems {
+					var response ResponseObject
+					//response.node.ID = rspMsg.NodeID.String()
+					//response.node.Namespace = rspMsg.NodeID.Namespace()
+					response.value = item.Value
+					subscription <- &response
+				}
+
+			default:
+				logp.Err("what's this publish result? %T", msg.Value)
+			}
+
 		}
 	}
-	logp.Info("[OPCUA] Subscribe to nodes done")
+	logp.Info("[OPCUA] Stopped listening")
 }
 
 func cleanup(sub *monitor.Subscription) {

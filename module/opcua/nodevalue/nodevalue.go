@@ -40,6 +40,7 @@ type MetricSet struct {
 	Mode              string `config:"securityMode"`
 	ClientCert        string `config:"clientCert"`
 	ClientKey         string `config:"clientKey"`
+	CN                string `config:"cn"`
 }
 
 type Node struct {
@@ -59,6 +60,7 @@ var DefaultConfig = MetricSet{
 	Password:          "",
 	ClientCert:        "",
 	ClientKey:         "",
+	CN:                "machinebeat",
 }
 
 var (
@@ -88,6 +90,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		Mode:              config.Mode,
 		ClientCert:        config.ClientCert,
 		ClientKey:         config.ClientKey,
+		CN:                config.CN,
 	}
 
 	err := establishConnection(*metricset, 1)
@@ -99,7 +102,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	//startBrowse(metricset)
 
 	if metricset.Subscribe {
-		startSubscription(metricset.Nodes)
+		go startSubscription(metricset.Nodes)
 	} else {
 		sem = semaphore.NewWeighted(int64(metricset.MaxThreads))
 	}
