@@ -4,10 +4,25 @@
 - module: opcua
   metricsets: ["nodevalue"]
   enabled: true
-  period: 2s
+  period: 1s
   
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://milo.digitalpetri.com:62541/milo"
+  #username: ""
+  #password: ""
+
+  #Possible values: None, Basic128Rsa15, Basic256Sha256, Basic256, Aes128Sha256RsaOaep, Aes256Sha256RsaPss
+  ## If you do not know which policies and modes are supported: start the beat in the debug mode and you will see which is supported by your server
+  #policy: ""
+  #Possible values: None, Sign, SignAndEncrypt
+  #mode: ""
+
+  ##Configuration for certificate based security
+  #clientCert: ""
+  #clientKey: ""
+
+  ## This needs to be part of the certificates SAN URL and DNS-Name 
+  #cn: "machinebeat"
   
   ##The subscribe mode collects one event whenever there is a change of the value.
   ## All collected events will be send after the configured period
