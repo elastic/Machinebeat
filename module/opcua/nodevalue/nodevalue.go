@@ -1,7 +1,6 @@
 package nodevalue
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/elastic/beats/libbeat/logp"
@@ -11,6 +10,7 @@ import (
 	"github.com/elastic/beats/metricbeat/mb"
 
 	"context"
+	"errors"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -31,6 +31,7 @@ type MetricSet struct {
 	mb.BaseMetricSet
 	Endpoint          string `config:"endpoint"`
 	Nodes             []Node `config:"nodes"`
+	Browse            Browse `config:"browse"`
 	RetryOnErrorCount int    `config:"retryOnError"`
 	MaxThreads        int    `config:"maxThreads"`
 	Subscribe         bool   `config:"subscribe"`
@@ -40,13 +41,26 @@ type MetricSet struct {
 	Mode              string `config:"securityMode"`
 	ClientCert        string `config:"clientCert"`
 	ClientKey         string `config:"clientKey"`
-	CN                string `config:"cn"`
+	AppName           string `config:"appName"`
+}
+
+type Browse struct {
+	Enabled          bool `config:"enabled"`
+	MaxLevel         int  `config:"maxLevel"`
+	MaxNodePerParent int  `config:"maxNodePerParent"`
 }
 
 type Node struct {
-	Namespace uint16      `config:"ns"`
-	ID        interface{} `config:"id"`
-	Label     string      `config:"label"`
+	ID       string `config:"id"`
+	Label    string `config:"label"`
+	Name     string
+	DataType string
+}
+
+var browseDefaults = Browse{
+	Enabled:          true,
+	MaxLevel:         3,
+	MaxNodePerParent: 5,
 }
 
 var DefaultConfig = MetricSet{
@@ -60,7 +74,9 @@ var DefaultConfig = MetricSet{
 	Password:          "",
 	ClientCert:        "",
 	ClientKey:         "",
-	CN:                "machinebeat",
+	AppName:           "machinebeat",
+	Nodes:             []Node{},
+	Browse:            browseDefaults,
 }
 
 var (
@@ -80,7 +96,6 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	metricset := &MetricSet{
 		BaseMetricSet:     base,
 		Endpoint:          config.Endpoint,
-		Nodes:             config.Nodes,
 		RetryOnErrorCount: config.RetryOnErrorCount,
 		MaxThreads:        config.MaxThreads,
 		Subscribe:         config.Subscribe,
@@ -90,43 +105,54 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		Mode:              config.Mode,
 		ClientCert:        config.ClientCert,
 		ClientKey:         config.ClientKey,
-		CN:                config.CN,
+		AppName:           config.AppName,
+		Nodes:             config.Nodes,
+		Browse:            config.Browse,
 	}
 
-	err := establishConnection(*metricset, 1)
+	newConnection, err := establishConnection(metricset, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	//Implements the browsing service of OPC UA. Currently not working well
-	//startBrowse(metricset)
+	if !newConnection {
+		logp.Warn("A new connection attempt was made. This gets ignored from this module")
+		return metricset, nil
+	}
 
+	//Check if browsing is activated in general.
+	//	If yes the collection will be started after browsing
+	//	If no the collection will be started with the configured nodes directly
 	if metricset.Subscribe {
-		go startSubscription(metricset.Nodes)
+		if metricset.Browse.Enabled {
+			//Implements the browsing service of OPC UA.
+			startBrowse()
+		} else {
+			startSubscription()
+		}
 	} else {
 		sem = semaphore.NewWeighted(int64(metricset.MaxThreads))
 	}
-
 	return metricset, nil
 }
 
-func establishConnection(config MetricSet, retryCounter int) error {
-	var err error
+func establishConnection(config *MetricSet, retryCounter int) (bool, error) {
 	for i := retryCounter; i > 0; i-- {
-		err = connect(config)
+		newConnection, err := connect(config)
 		if err == nil {
-			return nil
+			return newConnection, err
 		}
+		logp.Error(err)
 		time.Sleep(1 * time.Second)
 	}
-	logp.Critical("Tried to connect to OPC UA server %v time(s). Without success.", retryCounter)
-	return err
+	logp.Critical("[OPCUA] Tried to connect to OPC UA server %v time(s). Without success.", retryCounter)
+	return false, errors.New("Connection was not possible")
 }
 
 func collect(m *MetricSet, report mb.ReporterV2) error {
 	logp.Debug("Collector", "Event collector instance started")
 
-	data, err := collectData(m.Nodes)
+	data, err := collectData()
 	if err != nil {
 		logp.Info("error: %v", err)
 		logp.Error(err)
@@ -139,9 +165,11 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 }
 
 func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *MetricSet) {
+	logp.Info("[OPCUA] Publishing %v new events", len(data))
 	for _, response := range data {
 		var mbEvent mb.Event
 		event := make(common.MapStr)
+		module := make(common.MapStr)
 		if response.value.Status == 0 {
 			event.Put("state", "OK")
 		} else {
@@ -150,15 +178,9 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 		event.Put("created", response.value.SourceTimestamp.String())
 		event.Put("value", response.value.Value.Value())
 
-		//Map the configured label if its not set already
-		if response.node.Label == "" {
-			for _, nodeConfig := range config.Nodes {
-				if response.node.ID == "ns="+strconv.Itoa(int(nodeConfig.Namespace))+";s="+nodeConfig.ID.(string) {
-					response.node.Label = nodeConfig.Label
-				}
-			}
-		}
-		event.Put("node", response.node.Label)
+		module.Put("node", response.node)
+		module.Put("endpoint", config.Endpoint)
+		mbEvent.ModuleFields = module
 		mbEvent.MetricSetFields = event
 		report.Event(mbEvent)
 	}
@@ -184,7 +206,7 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 		} else {
 			ctx := context.Background()
 			if err := sem.Acquire(ctx, 1); err != nil {
-				logp.Err("Max threads reached. This means that it takes too long to get the data from your OPC UA server. You should consider to increase the max Thread counter or the period of getting the data.")
+				logp.Err("[OPCUA] Max threads reached. This means that it takes too long to get the data from your OPC UA server. You should consider to increase the max Thread counter or the period of getting the data.")
 			} else {
 				go func() {
 					collect(m, report)
@@ -194,11 +216,11 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 		}
 	} else {
 		//It seems that there was an error, we will try to reconnect
-		logp.Info("Lets wait a while before reconnect happens")
+		logp.Info("[OPCUA] Lets wait a while before reconnect happens")
 		time.Sleep(5 * time.Second)
-		err := establishConnection(*m, m.RetryOnErrorCount)
+		_, err := establishConnection(m, m.RetryOnErrorCount)
 		if err != nil {
-			logp.Info("Reconnect was not successful")
+			logp.Info("[OPCUA] Reconnect was not successful")
 			return err
 		}
 	}

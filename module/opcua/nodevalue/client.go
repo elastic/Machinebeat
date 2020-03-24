@@ -4,12 +4,12 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
 
 	"github.com/gopcua/opcua"
+	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/monitor"
 	"github.com/gopcua/opcua/ua"
 
 	"context"
 	"log"
-	"strconv"
 	"time"
 )
 
@@ -19,6 +19,7 @@ var (
 	endpoint     = ""
 	connected    = false
 	subscribedTo = make(map[string]bool)
+	cfg          *MetricSet
 )
 
 type ResponseObject struct {
@@ -33,43 +34,48 @@ func join(a, b string) string {
 	return a + "." + b
 }
 
-func connect(config MetricSet) error {
+func printEndpoints(endpoints []*ua.EndpointDescription) {
+	for _, endp := range endpoints {
+		logp.Info("[OPCUA] Endpoint: %v", endp.EndpointURL)
+		logp.Info("[OPCUA] Security Mode: %v", endp.SecurityMode.String())
+		logp.Info("[OPCUA] Security Policy: %v", endp.SecurityPolicyURI)
+	}
+}
+
+func connect(config *MetricSet) (bool, error) {
 	var err error
+	cfg = config
+	if connected {
+		return false, nil
+	}
+	logp.Info("[OPCUA] Get all endpoints from %v", config.Endpoint)
+	endpoints, err := opcua.GetEndpoints(config.Endpoint)
+	if err != nil {
+		logp.Error(err)
+	}
 
-	if !connected {
-		logp.Info("[OPCUA] Get all endpoints from %v", config.Endpoint)
-		endpoints, err := opcua.GetEndpoints(config.Endpoint)
-		if err != nil {
-			logp.Error(err)
-		}
-
-		for _, endp := range endpoints {
-			logp.Debug("Endpoints", "Found Endpoint: %v", endp.EndpointURL)
-			logp.Debug("Endpoints", "Security Mode: %v", endp.SecurityMode.String())
-			logp.Debug("Endpoints", "Security Policy: %v", endp.SecurityPolicyURI)
-		}
-
-		ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
-		if ep == nil {
-			logp.Err("[OPCUA] Failed to find suitable endpoint. Will switch to default.")
-			endpoint = config.Endpoint
-		} else {
-			endpoint = ep.EndpointURL
-		}
-
+	ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
+	if ep == nil {
+		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security0000000000000000:")
+		printEndpoints(endpoints)
+		endpoint = config.Endpoint
+	} else {
+		endpoint = ep.EndpointURL
 		logp.Info("[OPCUA] Policy URI: %v with security mode %v", ep.SecurityPolicyURI, ep.SecurityMode)
+	}
 
-		opts := []opcua.Option{
-			opcua.SecurityPolicy(config.Policy),
-			opcua.SecurityModeString(config.Mode),
-		}
+	opts := []opcua.Option{
+		opcua.SecurityPolicy(config.Policy),
+		opcua.SecurityModeString(config.Mode),
+	}
 
-		if config.ClientCert != "" {
-			logp.Info("[OPCUA] Set ApplicationDescription (SAN DNS and SAN URL) to %v", config.CN)
-			opts = append(opts, opcua.ApplicationURI(config.CN))
-			opts = append(opts, opcua.CertificateFile(config.ClientCert), opcua.PrivateKeyFile(config.ClientKey))
-		}
+	if config.ClientCert != "" {
+		logp.Info("[OPCUA] Set ApplicationDescription (SAN DNS and SAN URL) to %v", config.AppName)
+		opts = append(opts, opcua.ApplicationURI(config.AppName))
+		opts = append(opts, opcua.CertificateFile(config.ClientCert), opcua.PrivateKeyFile(config.ClientKey))
+	}
 
+	if ep != nil {
 		if config.Username != "" {
 			logp.Info("[OPCUA] Set authentication information")
 			logp.Info("[OPCUA] User: %v", config.Username)
@@ -78,61 +84,31 @@ func connect(config MetricSet) error {
 			logp.Info("[OPCUA] Set to anonymous login")
 			opts = append(opts, opcua.AuthAnonymous(), opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous))
 		}
-
-		ctx := context.Background()
-		client = opcua.NewClient(endpoint, opts...)
-		if err := client.Connect(ctx); err != nil {
-			return err
-		}
-		connected = true
-		logp.Info("[OPCUA] Connection established")
 	}
-	return err
+
+	ctx := context.Background()
+	client = opcua.NewClient(endpoint, opts...)
+	if err := client.Connect(ctx); err != nil {
+		return false, err
+	}
+	connected = true
+	logp.Info("[OPCUA] Connection established")
+	return true, err
 }
 
-func getNodeID(ns uint16, id interface{}) (*ua.NodeID, *ua.ReadValueID) {
-	var readValueID *ua.ReadValueID
-	readValueID = new(ua.ReadValueID)
-
-	convId, ok := id.(uint32)
-	if ok {
-		id = convId
-	}
-	nodeID, err := ua.ParseNodeID(id.(string))
-	if err != nil {
-		logp.Error(err)
-	} else {
-		readValueID.NodeID = nodeID
-		return nodeID, readValueID
-	}
-
-	switch v := id.(type) {
-	case int:
-		nodeID := *ua.NewNumericNodeID(ns, id.(uint32))
-		readValueID.NodeID = &nodeID
-		return &nodeID, readValueID
-	case string:
-		nodeID := *ua.NewStringNodeID(ns, id.(string))
-		readValueID.NodeID = &nodeID
-		return &nodeID, readValueID
-	default:
-		logp.Warn("[OPCUA] Configured node id %v has not a valid type. int and string is allowed. %v provided. ID will be ignored", id, v)
-	}
-
-	return nil, nil
-}
-
-func collectData(nodeCollection []Node) ([]*ResponseObject, error) {
+func collectData() ([]*ResponseObject, error) {
 
 	var retVal []*ResponseObject
 	var nodesToRead []*ua.ReadValueID
 
 	logp.Debug("Collect", "Building the request")
-	for _, nodeConfig := range nodeCollection {
-		logp.Debug("Collect", "Collecting data from Node %v (NS = %v)", nodeConfig.ID, nodeConfig.Namespace)
-		_, readValueID := getNodeID(nodeConfig.Namespace, nodeConfig.ID)
-		nodesToRead = append(nodesToRead, readValueID)
-
+	for _, nodeConfig := range cfg.Nodes {
+		logp.Debug("Collect", "Collecting data from Node %v", nodeConfig.ID)
+		nodeId, err := ua.ParseNodeID(nodeConfig.ID)
+		if err != nil {
+			return nil, err
+		}
+		nodesToRead = append(nodesToRead, &ua.ReadValueID{NodeID: nodeId})
 	}
 
 	req := &ua.ReadRequest{
@@ -149,11 +125,13 @@ func collectData(nodeCollection []Node) ([]*ResponseObject, error) {
 
 	logp.Debug("Collect", "Evaluating response")
 
-	for index, node := range nodeCollection {
-		var response *ResponseObject
+	for index, node := range cfg.Nodes {
+		logp.Debug("Collect", "Add response from %v", node.ID)
+		logp.Debug("Collect", "Current result %v", m.Results[index])
+		var response ResponseObject
 		response.node = node
 		response.value = m.Results[index]
-		retVal = append(retVal, response)
+		retVal = append(retVal, &response)
 	}
 
 	logp.Debug("Collect", "Data collection done")
@@ -161,13 +139,65 @@ func collectData(nodeCollection []Node) ([]*ResponseObject, error) {
 	return retVal, nil
 }
 
-func startSubscription(nodeCollection []Node) {
+func prepareSubscription() {
+	if subscription == nil {
+		subscription = make(chan *ResponseObject, 50000)
+	}
+}
+
+func startSubscription() {
 	logp.Info("[OPCUA] Starting subscribe process")
-	var node string
+	prepareSubscription()
+
+	for _, nodeConfig := range cfg.Nodes {
+		nodeId, err := ua.ParseNodeID(nodeConfig.ID)
+		if err != nil {
+			logp.Info("Error occured, will skip node: %v", nodeConfig.ID)
+			logp.Error(err)
+			continue
+		}
+		go subscribeTo(nodeId)
+	}
+
+	logp.Info("[OPCUA] Subscribe process done")
+}
+
+func subscribeTo(nodeId *ua.NodeID) {
+
+	if subscribedTo[nodeId.String()] {
+		return
+	}
+	logp.Info("[OPCUA] Subscribe to node: %v", nodeId.String())
+
+	//Prepare the response
+	var nodeInformation *Node
+	var found = false
+
+	for _, nodeCfg := range cfg.Nodes {
+		if nodeId.String() == nodeCfg.ID {
+			nodeInformation = &nodeCfg
+			found = true
+		}
+	}
+
+	if !found {
+		nodeInformation = &Node{
+			ID:    nodeId.String(),
+			Label: nodeId.String(),
+		}
+	}
+
+	node := client.Node(nodeId)
+	name, err := node.DisplayName()
+	nodeInformation.Name = name.Text
+
+	attrs, err := node.Attributes(ua.AttributeIDDataType)
+	if err != nil {
+		logp.Error(err)
+	}
+	nodeInformation.DataType = getDataType(attrs[0])
 
 	ctx := context.Background()
-	subscription = make(chan *ResponseObject, 5000)
-
 	subInterval, err := time.ParseDuration("10ms")
 	if err != nil {
 		logp.Error(err)
@@ -187,50 +217,35 @@ func startSubscription(nodeCollection []Node) {
 
 	logp.Info("[OPCUA] Created subscription with id %v", sub.SubscriptionID)
 
-	for _, nodeConfig := range nodeCollection {
-
-		if subscribedTo[nodeConfig.ID.(string)] {
-			continue
-		}
-		node = "ns=" + strconv.Itoa(int(nodeConfig.Namespace)) + ";s=" + nodeConfig.ID.(string)
-		logp.Info("[OPCUA] Subscribe to node: %v", node)
-
-		id, err := ua.ParseNodeID(node)
-		if err != nil {
-			logp.Error(err)
-		}
-
-		// arbitrary client handle for the monitoring item
-		handle := uint32(42)
-		miCreateRequest := opcua.NewMonitoredItemCreateRequestWithDefaults(id, ua.AttributeIDValue, handle)
-		res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
-		if err != nil || res.Results[0].StatusCode != ua.StatusOK {
-			logp.Error(err)
-		}
-
-		subscribedTo[nodeConfig.ID.(string)] = true
-		logp.Info("[OPCUA] Subscribe to node done")
-
+	// arbitrary client handle for the monitoring item
+	handle := uint32(42)
+	miCreateRequest := opcua.NewMonitoredItemCreateRequestWithDefaults(nodeId, ua.AttributeIDValue, handle)
+	res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
+	if err != nil || res.Results[0].StatusCode != ua.StatusOK {
+		logp.Error(err)
 	}
+
+	subscribedTo[nodeId.String()] = true
+	logp.Debug("Subscribe", "[OPCUA] Subscribe to node done")
+
 	go sub.Run(ctx) // start Publish loop
-	logp.Info("[OPCUA] Start listening")
+	logp.Debug("Subscribe", "[OPCUA] Start listening")
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case msg := <-ch:
 			if msg.Error != nil {
-				logp.Warn("[OPCUA] error=%s", msg.Error)
+				logp.Debug("Subscribe", "[OPCUA] subscription=%d error=%s", msg.SubscriptionID, msg.Error)
 				continue
-
 			}
 
 			switch x := msg.Value.(type) {
 			case *ua.DataChangeNotification:
 				for _, item := range x.MonitoredItems {
+					//Create response object. This will be collected for every subscription and send during fetch phase to elastic
 					var response ResponseObject
-					//response.node.ID = rspMsg.NodeID.String()
-					//response.node.Namespace = rspMsg.NodeID.Namespace()
+					response.node = *nodeInformation
 					response.value = item.Value
 					subscription <- &response
 				}
@@ -242,6 +257,123 @@ func startSubscription(nodeCollection []Node) {
 		}
 	}
 	logp.Info("[OPCUA] Stopped listening")
+}
+
+//startBrowse is starting browsing through all configured nodes
+//if no node is configured it will start at the root node
+func startBrowse() {
+
+	var nodeObjsToBrowse []*opcua.Node
+
+	prepareSubscription()
+
+	if len(cfg.Nodes) > 0 {
+		for _, nodeConfig := range cfg.Nodes {
+			logp.Info("[OPCUA] Start browsing node: %v", nodeConfig.ID)
+			nodeId, err := ua.ParseNodeID(nodeConfig.ID)
+			if err != nil {
+				logp.Err("Invalid node id: %s", err)
+				continue
+			}
+			nodeObj := client.Node(nodeId)
+			nodeObjsToBrowse = append(nodeObjsToBrowse, nodeObj)
+		}
+	} else {
+		logp.Info("[OPCUA] Start browsing from node: root")
+
+		nodeObj := client.Node(ua.NewTwoByteNodeID(id.ObjectsFolder))
+		nodeObjsToBrowse = append(nodeObjsToBrowse, nodeObj)
+	}
+
+	//For each configured Node start browsing.
+	for _, nodeObj := range nodeObjsToBrowse {
+		//This will browse through nodes and subscribe to every node that we found
+		_, err := browse(nodeObj, 0)
+		if err != nil {
+			logp.Error(err)
+		}
+	}
+}
+
+//browse() is a recursive function to iterate through the node tree
+// it returns the node ids of every node that produces values to subscribe to
+func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
+	if level > cfg.Browse.MaxLevel {
+		return nil, nil
+	}
+
+	var nodes []*ua.NodeID
+
+	//Collect attributes of the current node
+	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName)
+	if err != nil {
+		logp.Error(err)
+	}
+	logp.Info("Analyse node id %v", node.ID.String())
+
+	//Only add nodes that have data
+	if getDataType(attrs[0]) != "" {
+		logp.Info("Add new node to subscription list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
+		go subscribeTo(node.ID)
+		nodes = append(nodes, node.ID)
+	}
+
+	//Collect children of the node and iterate through them
+	children, err := node.Children(id.HasChild, ua.NodeClassAll)
+	if err != nil {
+		logp.Error(err)
+	}
+	for i, child := range children {
+
+		n, err := browse(child, level+1)
+		if err != nil {
+			logp.Error(err)
+		}
+		//Append everything that comes back
+		nodes = append(nodes, n...)
+
+		if i > cfg.Browse.MaxNodePerParent {
+			break
+		}
+	}
+
+	return nodes, nil
+}
+
+func getDataType(value *ua.DataValue) string {
+	switch err := value.Status; err {
+	case ua.StatusOK:
+		switch v := value.Value.NodeID().IntID(); v {
+		case id.DateTime:
+			return "time.Time"
+		case id.Boolean:
+			return "bool"
+		case id.SByte:
+			return "int8"
+		case id.Int16:
+			return "int16"
+		case id.Int32:
+			return "int32"
+		case id.Byte:
+			return "byte"
+		case id.UInt16:
+			return "uint16"
+		case id.UInt32:
+			return "uint32"
+		case id.UtcTime:
+			return "time.Time"
+		case id.String:
+			return "string"
+		case id.Float:
+			return "float32"
+		case id.Double:
+			return "float64"
+		}
+	default:
+		logp.Debug("Get DataType", "Status not okay")
+	}
+
+	return ""
 }
 
 func cleanup(sub *monitor.Subscription) {
