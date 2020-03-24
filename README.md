@@ -19,8 +19,11 @@ In a future version Machinebeat is supposed to support additional protocols in o
 
 The OPC UA module does support automatic browsing now. So you don't need to know the structure of the data in your OPC UA server.
 For users that have been used Machinebeat < 7.6:
+
 There is a breaking change in the configuration. If you configure your nodes directly you need to put namespace (ns) into the ID.
+
 A valid ID looks like this:
+
 `id: "ns=2;s=Dynamic/RandomFloat"`
 
 # Let's test it
