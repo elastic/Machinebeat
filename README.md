@@ -15,6 +15,17 @@ The ability to get machine metrics and other related information is a foundation
 
 In a future version Machinebeat is supposed to support additional protocols in order to cover a broader mix of different sensor metrics in the industry.
 
+# Latest release news 24. March 2020
+
+The OPC UA module does support automatic browsing now. So you don't need to know the structure of the data in your OPC UA server.
+For users that have been used Machinebeat < 7.6:
+
+There is a breaking change in the configuration. If you configure your nodes directly you need to put namespace (ns) into the ID.
+
+A valid ID looks like this:
+
+`id: "ns=2;s=Dynamic/RandomFloat"`
+
 # Let's test it
 
 You don't have an Elastic cluster up and running?
@@ -55,7 +66,7 @@ More about OPC-UA can be found on [Wikipedia](https://en.wikipedia.org/wiki/OPC_
 
 To enable the OPCUA Module rename the file modules.d/opcua.yml.disabled to modules.d/opcua.yml
 
-The current version is able to read and subscribe nodes from an [OPC-UA address space](https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-3-address-space-model/) specified in the modules.d/opcua.yml file from Servers and transfer the collected data to Elasticsearch directly or via Logstash. The nodes and its leafs have to be specified in the above mentioned YAML file like this:
+The current version is able to read and subscribe nodes from an [OPC-UA address space](https://opcfoundation.org/developer-tools/specifications-unified-architecture/part-3-address-space-model/) specified in the modules.d/opcua.yml file from Servers and transfer the collected data to Elasticsearch directly or via Logstash. The nodes and its leafs will be discovered automatically mentioned YAML file like this:
 
 ```
 
@@ -66,22 +77,10 @@ The current version is able to read and subscribe nodes from an [OPC-UA address 
   
 #The URL of your OPC UA Server
   endpoint: "opc.tcp://opcuaserver.com:48010"
-
-  nodes:
-  -  ns: 3
-     id: "AirConditioner_1.State"
-     label: "State AirConditioner_1"
-  -  ns: 3
-     id: "AirConditioner_1.Humidity"
-     label: "Humidity AirConditioner_1"
-  -  ns: 3
-     id: "AirConditioner_1.Temperature"
-     label: "Temperature AirConditioner_1"
+  
 ```
 
 Different Nodes can be specified and read by machinebeat.
-
-In a future version it is planned to have Machinebeat using the browsing service of OPC-UA to browse for nodes/views. It will then pull the subsequent leafs and metrics from those specified nodes or views into the config file for further editing and adjustments.
 
 #### MQTT Module
 To enable the MQTT Module rename the file modules.d/mqtt.yml.disabled to modules.d/mqtt.yml
@@ -130,7 +129,7 @@ Ensure that this folder is at the following location:
 ### Requirements
 
 * [Golang](https://golang.org/dl/) 1.12
-* [Elastic Stack](https://cloud.elastic.co) >v7.0
+* [Elastic Stack](https://cloud.elastic.co) >v7.6
 
 ### Init Project
 To get running with Machinebeat and also install the
