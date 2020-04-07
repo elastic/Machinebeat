@@ -177,6 +177,7 @@ func subscribeTo(nodeId *ua.NodeID) {
 		if nodeId.String() == nodeCfg.ID {
 			nodeInformation = &nodeCfg
 			found = true
+			break
 		}
 	}
 

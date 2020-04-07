@@ -176,7 +176,7 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 			event.Put("state", "ERROR")
 		}
 		event.Put("created", response.value.SourceTimestamp.String())
-		event.Put("value", response.value.Value.Value())
+		event.Put(response.node.DataType, response.value.Value.Value())
 
 		module.Put("node", response.node)
 		module.Put("endpoint", config.Endpoint)
