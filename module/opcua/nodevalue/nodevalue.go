@@ -29,19 +29,20 @@ func init() {
 // interface methods except for Fetch.
 type MetricSet struct {
 	mb.BaseMetricSet
-	Endpoint          string `config:"endpoint"`
-	Nodes             []Node `config:"nodes"`
-	Browse            Browse `config:"browse"`
-	RetryOnErrorCount int    `config:"retryOnError"`
-	MaxThreads        int    `config:"maxThreads"`
-	Subscribe         bool   `config:"subscribe"`
-	Username          string `config:"username"`
-	Password          string `config:"password"`
-	Policy            string `config:"policy"`
-	Mode              string `config:"securityMode"`
-	ClientCert        string `config:"clientCert"`
-	ClientKey         string `config:"clientKey"`
-	AppName           string `config:"appName"`
+	Endpoint            string `config:"endpoint"`
+	Nodes               []Node `config:"nodes"`
+	Browse              Browse `config:"browse"`
+	RetryOnErrorCount   int    `config:"retryOnError"`
+	MaxThreads          int    `config:"maxThreads"`
+	MaxTriesToReconnect int    `config:"maxTriesToReconnect"`
+	Subscribe           bool   `config:"subscribe"`
+	Username            string `config:"username"`
+	Password            string `config:"password"`
+	Policy              string `config:"policy"`
+	Mode                string `config:"securityMode"`
+	ClientCert          string `config:"clientCert"`
+	ClientKey           string `config:"clientKey"`
+	AppName             string `config:"appName"`
 }
 
 type Browse struct {
@@ -64,23 +65,25 @@ var browseDefaults = Browse{
 }
 
 var DefaultConfig = MetricSet{
-	Endpoint:          "opc.tcp://localhost:4840",
-	RetryOnErrorCount: 5,
-	MaxThreads:        50,
-	Subscribe:         true,
-	Policy:            "",
-	Mode:              "",
-	Username:          "",
-	Password:          "",
-	ClientCert:        "",
-	ClientKey:         "",
-	AppName:           "machinebeat",
-	Nodes:             []Node{},
-	Browse:            browseDefaults,
+	Endpoint:            "opc.tcp://localhost:4840",
+	RetryOnErrorCount:   5,
+	MaxThreads:          50,
+	Subscribe:           true,
+	Policy:              "",
+	Mode:                "",
+	Username:            "",
+	Password:            "",
+	ClientCert:          "",
+	ClientKey:           "",
+	AppName:             "machinebeat",
+	Nodes:               []Node{},
+	Browse:              browseDefaults,
+	MaxTriesToReconnect: 5,
 }
 
 var (
-	sem *semaphore.Weighted
+	sem     *semaphore.Weighted
+	counter int
 )
 
 // New creates a new instance of the MetricSet. New is responsible for unpacking
@@ -94,22 +97,24 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	}
 
 	metricset := &MetricSet{
-		BaseMetricSet:     base,
-		Endpoint:          config.Endpoint,
-		RetryOnErrorCount: config.RetryOnErrorCount,
-		MaxThreads:        config.MaxThreads,
-		Subscribe:         config.Subscribe,
-		Username:          config.Username,
-		Password:          config.Password,
-		Policy:            config.Policy,
-		Mode:              config.Mode,
-		ClientCert:        config.ClientCert,
-		ClientKey:         config.ClientKey,
-		AppName:           config.AppName,
-		Nodes:             config.Nodes,
-		Browse:            config.Browse,
+		BaseMetricSet:       base,
+		Endpoint:            config.Endpoint,
+		RetryOnErrorCount:   config.RetryOnErrorCount,
+		MaxThreads:          config.MaxThreads,
+		Subscribe:           config.Subscribe,
+		Username:            config.Username,
+		Password:            config.Password,
+		Policy:              config.Policy,
+		Mode:                config.Mode,
+		ClientCert:          config.ClientCert,
+		ClientKey:           config.ClientKey,
+		AppName:             config.AppName,
+		Nodes:               config.Nodes,
+		Browse:              config.Browse,
+		MaxTriesToReconnect: config.MaxTriesToReconnect,
 	}
 
+	counter = metricset.MaxTriesToReconnect
 	newConnection, err := establishConnection(metricset, 1)
 	if err != nil {
 		return nil, err
@@ -164,8 +169,21 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 	return nil
 }
 
+func handleCounter(eventCount int, resetValue int) {
+	if eventCount == 0 {
+		counter = counter - 1
+		if counter == 0 {
+			logp.Info("[OPCUA] Too much zero publish attempts.")
+			connected = false
+		}
+	} else {
+		counter = resetValue
+	}
+}
+
 func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *MetricSet) {
 	logp.Info("[OPCUA] Publishing %v new events", len(data))
+	handleCounter(len(data), config.MaxTriesToReconnect)
 	for _, response := range data {
 		var mbEvent mb.Event
 		event := make(common.MapStr)
@@ -176,7 +194,12 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 			event.Put("state", "ERROR")
 		}
 		event.Put("created", response.value.SourceTimestamp.String())
-		event.Put(response.node.DataType, response.value.Value.Value())
+
+		if response.node.DataType != "" {
+			event.Put(response.node.DataType, response.value.Value.Value())
+		} else {
+			event.Put("value", response.value.Value.Value())
+		}
 
 		module.Put("node", response.node)
 		module.Put("endpoint", config.Endpoint)

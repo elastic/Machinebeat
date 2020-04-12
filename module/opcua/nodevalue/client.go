@@ -100,6 +100,7 @@ func collectData() ([]*ResponseObject, error) {
 
 	var retVal []*ResponseObject
 	var nodesToRead []*ua.ReadValueID
+	var nodes []Node
 
 	logp.Debug("Collect", "Building the request")
 	for _, nodeConfig := range cfg.Nodes {
@@ -109,6 +110,19 @@ func collectData() ([]*ResponseObject, error) {
 			return nil, err
 		}
 		nodesToRead = append(nodesToRead, &ua.ReadValueID{NodeID: nodeId})
+
+		node := client.Node(nodeId)
+		name, err := node.DisplayName()
+		nodeConfig.Name = name.Text
+
+		attrs, err := node.Attributes(ua.AttributeIDDataType)
+		if err != nil {
+			logp.Error(err)
+		}
+		nodeConfig.DataType = getDataType(attrs[0])
+
+		//Adding more meta information to the nodes
+		nodes = append(nodes, nodeConfig)
 	}
 
 	req := &ua.ReadRequest{
@@ -125,7 +139,7 @@ func collectData() ([]*ResponseObject, error) {
 
 	logp.Debug("Collect", "Evaluating response")
 
-	for index, node := range cfg.Nodes {
+	for index, node := range nodes {
 		logp.Debug("Collect", "Add response from %v", node.ID)
 		logp.Debug("Collect", "Current result %v", m.Results[index])
 		var response ResponseObject
