@@ -113,7 +113,9 @@ func collectData() ([]*ResponseObject, error) {
 
 		node := client.Node(nodeId)
 		name, err := node.DisplayName()
-		nodeConfig.Name = name.Text
+		if err == nil {
+			nodeConfig.Name = name.Text
+		}
 
 		attrs, err := node.Attributes(ua.AttributeIDDataType)
 		if err != nil {
@@ -313,6 +315,7 @@ func startBrowse() {
 //browse() is a recursive function to iterate through the node tree
 // it returns the node ids of every node that produces values to subscribe to
 func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
+	logp.Debug("Browse", "Start browsing")
 	if level > cfg.Browse.MaxLevel {
 		return nil, nil
 	}
@@ -334,25 +337,31 @@ func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 	}
 
 	//Collect children of the node and iterate through them
-	children, err := node.Children(id.HasChild, ua.NodeClassAll)
-	if err != nil {
-		logp.Error(err)
-	}
-	for i, child := range children {
+	children := findChildren(node, 0)
 
+	for i, child := range children {
 		n, err := browse(child, level+1)
 		if err != nil {
 			logp.Error(err)
 		}
 		//Append everything that comes back
 		nodes = append(nodes, n...)
-
 		if i > cfg.Browse.MaxNodePerParent {
 			break
 		}
 	}
-
 	return nodes, nil
+}
+
+func findChildren(node *opcua.Node, refs uint32) []*opcua.Node {
+	children, err := node.Children(refs, ua.NodeClassAll)
+	if err != nil {
+		logp.Error(err)
+		logp.Debug("Browse", err.Error())
+		return nil
+	}
+	logp.Debug("Browse", "Found %v new nodes for browsing with ref id %v", len(children), refs)
+	return children
 }
 
 func getDataType(value *ua.DataValue) string {
