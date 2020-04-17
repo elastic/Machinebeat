@@ -52,6 +52,7 @@ func connect(config *MetricSet) (bool, error) {
 	endpoints, err := opcua.GetEndpoints(config.Endpoint)
 	if err != nil {
 		logp.Error(err)
+		logp.Debug("Connect", err.Error())
 	}
 
 	ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
@@ -115,13 +116,17 @@ func collectData() ([]*ResponseObject, error) {
 		name, err := node.DisplayName()
 		if err == nil {
 			nodeConfig.Name = name.Text
+		} else {
+			logp.Debug("Collect", err.Error())
 		}
 
 		attrs, err := node.Attributes(ua.AttributeIDDataType)
 		if err != nil {
 			logp.Error(err)
+			logp.Debug("Collect", err.Error())
+		} else {
+			nodeConfig.DataType = getDataType(attrs[0])
 		}
-		nodeConfig.DataType = getDataType(attrs[0])
 
 		//Adding more meta information to the nodes
 		nodes = append(nodes, nodeConfig)
@@ -170,6 +175,7 @@ func startSubscription() {
 		if err != nil {
 			logp.Info("Error occured, will skip node: %v", nodeConfig.ID)
 			logp.Error(err)
+			logp.Debug("Subscribe", err.Error())
 			continue
 		}
 		go subscribeTo(nodeId)
@@ -211,6 +217,7 @@ func subscribeTo(nodeId *ua.NodeID) {
 	attrs, err := node.Attributes(ua.AttributeIDDataType)
 	if err != nil {
 		logp.Error(err)
+		logp.Debug("Subscribe", err.Error())
 	}
 	nodeInformation.DataType = getDataType(attrs[0])
 
@@ -218,6 +225,7 @@ func subscribeTo(nodeId *ua.NodeID) {
 	subInterval, err := time.ParseDuration("10ms")
 	if err != nil {
 		logp.Error(err)
+		logp.Debug("Subscribe", err.Error())
 	}
 
 	// start channel-based subscription
@@ -229,6 +237,7 @@ func subscribeTo(nodeId *ua.NodeID) {
 	if err != nil {
 		logp.Info("Error occured")
 		logp.Error(err)
+		logp.Debug("Subscribe", err.Error())
 		return
 	}
 
@@ -308,6 +317,7 @@ func startBrowse() {
 		_, err := browse(nodeObj, 0)
 		if err != nil {
 			logp.Error(err)
+			logp.Debug("Browse", err.Error())
 		}
 	}
 }
@@ -326,6 +336,7 @@ func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName)
 	if err != nil {
 		logp.Error(err)
+		logp.Debug("Browse", err.Error())
 	}
 	logp.Info("Analyse node id %v", node.ID.String())
 
@@ -343,6 +354,7 @@ func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 		n, err := browse(child, level+1)
 		if err != nil {
 			logp.Error(err)
+			logp.Debug("Browse", err.Error())
 		}
 		//Append everything that comes back
 		nodes = append(nodes, n...)

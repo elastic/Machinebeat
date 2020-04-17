@@ -195,10 +195,12 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 		}
 		event.Put("created", response.value.SourceTimestamp.String())
 
-		if response.node.DataType != "" {
-			event.Put(response.node.DataType, response.value.Value.Value())
-		} else {
-			event.Put("value", response.value.Value.Value())
+		if response.value.Value != nil {
+			if response.node.DataType != "" {
+				event.Put(response.node.DataType, response.value.Value.Value())
+			} else {
+				event.Put("value", response.value.Value.Value())
+			}
 		}
 
 		module.Put("node", response.node)
