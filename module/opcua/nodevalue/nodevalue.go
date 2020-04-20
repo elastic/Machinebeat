@@ -157,13 +157,21 @@ func establishConnection(config *MetricSet, retryCounter int) (bool, error) {
 func collect(m *MetricSet, report mb.ReporterV2) error {
 	logp.Debug("Collector", "Event collector instance started")
 
+	defer func() {
+		if r := recover(); r != nil {
+			logp.Info("Recovered from panic. The beat will reconnect now")
+			closeConnection()
+		}
+	}()
+
 	data, err := collectData()
 	if err != nil {
 		logp.Info("error: %v", err)
 		logp.Error(err)
-		connected = false
+		closeConnection()
 		return err
 	}
+
 	publishResponses(data, report, m)
 	logp.Debug("Collector", "Event collector instance finished sucessfully.")
 	return nil
@@ -174,7 +182,7 @@ func handleCounter(eventCount int, resetValue int) {
 		counter = counter - 1
 		if counter == 0 {
 			logp.Info("[OPCUA] Too much zero publish attempts.")
-			connected = false
+			closeConnection()
 		}
 	} else {
 		counter = resetValue
@@ -202,7 +210,6 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 				event.Put("value", response.value.Value.Value())
 			}
 		}
-
 		module.Put("node", response.node)
 		module.Put("endpoint", config.Endpoint)
 		mbEvent.ModuleFields = module
@@ -227,7 +234,6 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 					return nil
 				}
 			}
-
 		} else {
 			ctx := context.Background()
 			if err := sem.Acquire(ctx, 1); err != nil {
@@ -249,6 +255,5 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 			return err
 		}
 	}
-
 	return nil
 }
