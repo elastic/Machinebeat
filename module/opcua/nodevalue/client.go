@@ -154,9 +154,7 @@ func collectData() ([]*ResponseObject, error) {
 		response.value = m.Results[index]
 		retVal = append(retVal, &response)
 	}
-
 	logp.Debug("Collect", "Data collection done")
-
 	return retVal, nil
 }
 
@@ -418,7 +416,17 @@ func cleanup(sub *monitor.Subscription) {
 }
 
 func closeConnection() {
-	client.Close()
-	logp.Debug("Collect", "Successfully shutdown connection")
+	logp.Debug("Shutdown", "Will shutdown connection savely")
 	connected = false
+
+	//Fetch panic during shutdown. So that the beat can reconnect
+	defer func() {
+		if r := recover(); r != nil {
+			logp.Info("The connection was already closed / terminated")
+		}
+	}()
+
+	client.CloseSession()
+	client.Close()
+	logp.Debug("Shutdown", "Shutdown successfully")
 }
