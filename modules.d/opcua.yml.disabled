@@ -47,7 +47,6 @@
   ##If this is not configured the browse will start at root
   ## Configure the nodes directly to speed up start up of the beat
   #nodes:
-  #-  ns: 2
-  #   id: "Dynamic/RandomDouble"
+  #-  id: "ns=2;Dynamic/RandomDouble"
   #   label: "Random Double"
 
