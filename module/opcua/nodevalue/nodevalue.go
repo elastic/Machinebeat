@@ -128,15 +128,31 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	//Check if browsing is activated in general.
 	//	If yes the collection will be started after browsing
 	//	If no the collection will be started with the configured nodes directly
-	if metricset.Subscribe {
-		if metricset.Browse.Enabled {
-			//Implements the browsing service of OPC UA.
-			startBrowse()
-		} else {
-			startSubscription()
+	if metricset.Browse.Enabled {
+		logp.Info("Browsing is enabled. Data collection will start after discovery. Based on your server and browsing configuration this can take some time.")
+
+		//Implements the browsing service of OPC UA.
+		nodesToCollect = startBrowse()
+
+		logp.Debug("Browse", "Nodes to collect data from")
+		for _, nodeConfig := range nodesToCollect {
+			logp.Debug("Browse", "Node: %v", nodeConfig.ID)
 		}
+
+		logp.Info("Browsing finished")
 	} else {
-		sem = semaphore.NewWeighted(int64(metricset.MaxThreads))
+		//If browsing is disabled we will collect directly from the configured nodes
+		nodesToCollect = metricset.Nodes
+	}
+
+	if len(nodesToCollect) == 0 {
+		logp.Info("Found 0 nodes to collect data from.")
+	} else {
+		if metricset.Subscribe {
+			startSubscription()
+		} else {
+			sem = semaphore.NewWeighted(int64(metricset.MaxThreads))
+		}
 	}
 	return metricset, nil
 }

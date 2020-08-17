@@ -8,12 +8,16 @@
   
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://milo.digitalpetri.com:62541/milo"
+
+  #==========================  Security configuration ============================
   #username: ""
   #password: ""
-
+  
+  ##If you do not know which policies and modes are supported: start the beat in the debug mode and you will see which is supported by your server
+  
   #Possible values: None, Basic128Rsa15, Basic256Sha256, Basic256, Aes128Sha256RsaOaep, Aes256Sha256RsaPss
-  ## If you do not know which policies and modes are supported: start the beat in the debug mode and you will see which is supported by your server
   #policy: ""
+  
   #Possible values: None, Sign, SignAndEncrypt
   #mode: ""
 
@@ -21,33 +25,33 @@
   #clientCert: ""
   #clientKey: ""
 
-  ## This needs to be part of the certificates SAN URL and DNS-Name 
-  #cn: "machinebeat"
+  ##This needs to be part of the certificates SAN URL and DNS-Name 
+  #appName: "machinebeat"
   
-  ##The subscribe mode collects one event whenever there is a change of the value.
+  #==========================  Data collection configuration ============================
+  
+  ##The subscribe mode collects one event whenever there is a change of the value. This is the default.
   ## All collected events will be send after the configured period
   ## If you turn this off the beat will pull the current value after each period.
   #subscribe: true
 
   ##The browse mode is enabled at default
   ## This means, if the configured nodes have childs all subscribable nodes will be monitored
-  ## This does not work if subscribe: false
-  #browse:
-  #- enabled: true
-  #  maxLevel: 3
-  #  maxNodePerParent: 5
+  #browse.enabled: true
+  #browse.maxLevel: 3
+  #browse.maxNodePerParent: 5
   
-  ##How often we should retry to connect to the opcua server
+  ##How often we should retry to connect to the opcua server when something is failes after the first inital successful connection
   #retryOnError: 5
 
-  ##How many collect threads should be opened. This is only relevant for non subscription mode.  
+  ##How many collect threads should be opened. This is only relevant for non subscribe mode.  
   ## This limit can be reached when it takes longer to get a value than it is configured with period. 
   #maxThreads: 50
   
-  ##If this is not configured the browse will start at root
+  #==========================  Node configuration ============================
+  ##If this is not configured the browse will start at root. This is required if browse is set to false
   ## Configure the nodes directly to speed up start up of the beat
   #nodes:
-  #-  ns: 2
-  #   id: "Dynamic/RandomDouble"
+  #-  id: "ns=2;s=Dynamic/RandomDouble"
   #   label: "Random Double"
 

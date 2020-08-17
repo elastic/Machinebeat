@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	client       *opcua.Client
-	subscription chan *ResponseObject
-	endpoint     = ""
-	connected    = false
-	subscribedTo = make(map[string]bool)
-	cfg          *MetricSet
+	client         *opcua.Client
+	subscription   chan *ResponseObject
+	endpoint       = ""
+	connected      = false
+	cfg            *MetricSet
+	nodesToCollect []Node
 )
 
 type ResponseObject struct {
@@ -35,6 +35,9 @@ func join(a, b string) string {
 }
 
 func printEndpoints(endpoints []*ua.EndpointDescription) {
+	if len(endpoints) == 0 {
+		logp.Info("[OPCUA] This server has no endpoints. This can happen when the OPC UA server can't be reached. Are you sure that the endpoint is right?")
+	}
 	for _, endp := range endpoints {
 		logp.Info("[OPCUA] Endpoint: %v", endp.EndpointURL)
 		logp.Info("[OPCUA] Security Mode: %v", endp.SecurityMode.String())
@@ -57,7 +60,7 @@ func connect(config *MetricSet) (bool, error) {
 
 	ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
 	if ep == nil {
-		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security0000000000000000:")
+		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security:")
 		printEndpoints(endpoints)
 		endpoint = config.Endpoint
 	} else {
@@ -104,7 +107,7 @@ func collectData() ([]*ResponseObject, error) {
 	var nodes []Node
 
 	logp.Debug("Collect", "Building the request")
-	for _, nodeConfig := range cfg.Nodes {
+	for _, nodeConfig := range nodesToCollect {
 		logp.Debug("Collect", "Collecting data from Node %v", nodeConfig.ID)
 		nodeId, err := ua.ParseNodeID(nodeConfig.ID)
 		if err != nil {
@@ -168,7 +171,7 @@ func startSubscription() {
 	logp.Info("[OPCUA] Starting subscribe process")
 	prepareSubscription()
 
-	for _, nodeConfig := range cfg.Nodes {
+	for _, nodeConfig := range nodesToCollect {
 		nodeId, err := ua.ParseNodeID(nodeConfig.ID)
 		if err != nil {
 			logp.Info("Error occured, will skip node: %v", nodeConfig.ID)
@@ -184,16 +187,13 @@ func startSubscription() {
 
 func subscribeTo(nodeId *ua.NodeID) {
 
-	if subscribedTo[nodeId.String()] {
-		return
-	}
 	logp.Info("[OPCUA] Subscribe to node: %v", nodeId.String())
 
 	//Prepare the response
 	var nodeInformation *Node
 	var found = false
 
-	for _, nodeCfg := range cfg.Nodes {
+	for _, nodeCfg := range nodesToCollect {
 		if nodeId.String() == nodeCfg.ID {
 			nodeInformation = &nodeCfg
 			found = true
@@ -249,7 +249,6 @@ func subscribeTo(nodeId *ua.NodeID) {
 		logp.Error(err)
 	}
 
-	subscribedTo[nodeId.String()] = true
 	logp.Debug("Subscribe", "[OPCUA] Subscribe to node done")
 
 	go sub.Run(ctx) // start Publish loop
@@ -285,14 +284,13 @@ func subscribeTo(nodeId *ua.NodeID) {
 
 //startBrowse is starting browsing through all configured nodes
 //if no node is configured it will start at the root node
-func startBrowse() {
+func startBrowse() []Node {
 
+	var nodes []Node
 	var nodeObjsToBrowse []*opcua.Node
 
-	prepareSubscription()
-
-	if len(cfg.Nodes) > 0 {
-		for _, nodeConfig := range cfg.Nodes {
+	if len(nodesToCollect) > 0 {
+		for _, nodeConfig := range nodesToCollect {
 			logp.Info("[OPCUA] Start browsing node: %v", nodeConfig.ID)
 			nodeId, err := ua.ParseNodeID(nodeConfig.ID)
 			if err != nil {
@@ -303,21 +301,38 @@ func startBrowse() {
 			nodeObjsToBrowse = append(nodeObjsToBrowse, nodeObj)
 		}
 	} else {
-		logp.Info("[OPCUA] Start browsing from node: root")
+		logp.Info("[OPCUA] Start browsing from Objects and Views folder")
 
-		nodeObj := client.Node(ua.NewTwoByteNodeID(id.ObjectsFolder))
-		nodeObjsToBrowse = append(nodeObjsToBrowse, nodeObj)
+		objFolderObj := client.Node(ua.NewTwoByteNodeID(id.ObjectsFolder))
+		nodeObjsToBrowse = append(nodeObjsToBrowse, objFolderObj)
+
+		viewFolderObj := client.Node(ua.NewTwoByteNodeID(id.ViewsFolder))
+		nodeObjsToBrowse = append(nodeObjsToBrowse, viewFolderObj)
 	}
 
 	//For each configured Node start browsing.
 	for _, nodeObj := range nodeObjsToBrowse {
 		//This will browse through nodes and subscribe to every node that we found
-		_, err := browse(nodeObj, 0)
+		nodeIDs, err := browse(nodeObj, 0)
 		if err != nil {
 			logp.Error(err)
 			logp.Debug("Browse", err.Error())
 		}
+		nodes = append(nodes, transformNodeIDtoNode(nodeIDs)...)
+		logp.Debug("Browse", "Found %v nodes to collect data from so far", len(nodes))
 	}
+	logp.Info("Found %v nodes in total to collect data from", len(nodes))
+	return nodes
+}
+
+func transformNodeIDtoNode(nodeIDs []*ua.NodeID) []Node {
+	var nodes []Node
+	for _, nodeId := range nodeIDs {
+		nodes = append(nodes, Node{
+			ID: nodeId.String(),
+		})
+	}
+	return nodes
 }
 
 //browse() is a recursive function to iterate through the node tree
@@ -325,10 +340,13 @@ func startBrowse() {
 func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 	logp.Debug("Browse", "Start browsing")
 	if level > cfg.Browse.MaxLevel {
+		logp.Debug("Browse", "Max level reached. Increase browse.maxLevel to increase this limit")
 		return nil, nil
 	}
 
 	var nodes []*ua.NodeID
+
+	logp.Info("Analyse node id %v", node.ID.String())
 
 	//Collect attributes of the current node
 	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName)
@@ -336,12 +354,11 @@ func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 		logp.Error(err)
 		logp.Debug("Browse", err.Error())
 	}
-	logp.Info("Analyse node id %v", node.ID.String())
 
 	//Only add nodes that have data
 	if getDataType(attrs[0]) != "" {
-		logp.Info("Add new node to subscription list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
-		go subscribeTo(node.ID)
+		logp.Info("Add new node to list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
+		//go subscribeTo(node.ID)
 		nodes = append(nodes, node.ID)
 	}
 
@@ -357,6 +374,7 @@ func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
 		//Append everything that comes back
 		nodes = append(nodes, n...)
 		if i > cfg.Browse.MaxNodePerParent {
+			logp.Debug("Browse", "Max node per parent reached. Increase browse.maxNodePerParent to increase this limit")
 			break
 		}
 	}
@@ -404,7 +422,7 @@ func getDataType(value *ua.DataValue) string {
 			return "float64"
 		}
 	default:
-		logp.Debug("Get DataType", "Status not okay")
+		logp.Debug("Get DataType", "This node has no data attached.")
 	}
 
 	return ""
