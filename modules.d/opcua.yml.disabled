@@ -1,3 +1,4 @@
+
 # Module: opcua
 # Docs: https://www.elastic.co/guide/en/beats/machinebeat//machinebeat-module-opcua.html
 
@@ -5,19 +6,19 @@
   metricsets: ["nodevalue"]
   enabled: true
   period: 1s
-  
+
   #The URL of your OPC UA Server
   endpoint: "opc.tcp://milo.digitalpetri.com:62541/milo"
 
   #==========================  Security configuration ============================
   #username: ""
   #password: ""
-  
+
   ##If you do not know which policies and modes are supported: start the beat in the debug mode and you will see which is supported by your server
-  
+
   #Possible values: None, Basic128Rsa15, Basic256Sha256, Basic256, Aes128Sha256RsaOaep, Aes256Sha256RsaPss
   #policy: ""
-  
+
   #Possible values: None, Sign, SignAndEncrypt
   #mode: ""
 
@@ -25,11 +26,11 @@
   #clientCert: ""
   #clientKey: ""
 
-  ##This needs to be part of the certificates SAN URL and DNS-Name 
+  ##This needs to be part of the certificates SAN URL and DNS-Name
   #appName: "machinebeat"
-  
+
   #==========================  Data collection configuration ============================
-  
+
   ##The subscribe mode collects one event whenever there is a change of the value. This is the default.
   ## All collected events will be send after the configured period
   ## If you turn this off the beat will pull the current value after each period.
@@ -40,18 +41,17 @@
   #browse.enabled: true
   #browse.maxLevel: 3
   #browse.maxNodePerParent: 5
-  
+
   ##How often we should retry to connect to the opcua server when something is failes after the first inital successful connection
   #retryOnError: 5
 
-  ##How many collect threads should be opened. This is only relevant for non subscribe mode.  
-  ## This limit can be reached when it takes longer to get a value than it is configured with period. 
+  ##How many collect threads should be opened. This is only relevant for non subscribe mode.
+  ## This limit can be reached when it takes longer to get a value than it is configured with period.
   #maxThreads: 50
-  
+
   #==========================  Node configuration ============================
   ##If this is not configured the browse will start at root. This is required if browse is set to false
   ## Configure the nodes directly to speed up start up of the beat
   #nodes:
   #-  id: "ns=2;s=Dynamic/RandomDouble"
   #   label: "Random Double"
-
