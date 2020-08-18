@@ -122,5 +122,11 @@ Make sure your certificate has correct policies attached:
 
 ## How to build on your own env
 
-The build process is not working due to new build system used in the beats framework. 
-We will update that soon. Use the pre build binaries until this is done.
+1.) Download all dependencies from go.mod using `go get -u`
+2.) You may need to overwrite some modules with the following versions that do not support go.mod in older versions
+```
+go get k8s.io/client-go@kubernetes-1.14.8
+go get k8s.io/api@kubernetes-1.14.8
+go get k8s.io/apimachinery@kubernetes-1.14.8
+```
+3.) Run `go build` in the machinebeat repository
