@@ -123,6 +123,7 @@ Make sure your certificate has correct policies attached:
 ## How to build on your own env
 
 1.) Download all dependencies from go.mod using `go get -u`
+
 2.) You may need to overwrite some modules with the following versions that do not support go.mod in older versions
 ```
 go get k8s.io/client-go@kubernetes-1.14.8
