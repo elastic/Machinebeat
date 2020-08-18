@@ -1,4 +1,4 @@
-########################## Metricbeat Configuration ###########################
+########################## {{.BeatName}} Configuration ###########################
 
 # This file is a full configuration example documenting all non-deprecated
 # options in comments. For a shorter configuration example, that contains only
@@ -11,7 +11,7 @@
 
 # Config reloading allows to dynamically load modules. Each file which is
 # monitored must contain one or multiple modules as a list.
-metricbeat.config.modules:
+{{.BeatName}}.config.modules:
 
   # Glob pattern for configuration reloading
   path: ${path.config}/modules.d/*.yml
@@ -24,14 +24,14 @@ metricbeat.config.modules:
 
 # Maximum amount of time to randomly delay the start of a metricset. Use 0 to
 # disable startup delay.
-metricbeat.max_start_delay: 10s
+{{.BeatName}}.max_start_delay: 10s
 
 #============================== Autodiscover ===================================
 
 # Autodiscover allows you to detect changes in the system and spawn new modules
 # as they happen.
 
-#metricbeat.autodiscover:
+#{{.BeatName}}.autodiscover:
   # List of enabled autodiscover providers
 #  providers:
 #    - type: docker
@@ -52,24 +52,3 @@ metricbeat.max_start_delay: 10s
 # This setting is experimental.
 
 #timeseries.enabled: false
-
-#==========================  Modules configuration ============================
-machinebeat.modules:
-
-#-------------------------------- mqtt Module --------------------------------
-- module: mqtt
-  metricsets: ["mqtt"]
-  enabled: false
-  period: 10s
-  hosts: ["localhost"]
-
-
-#-------------------------------- opcua Module -------------------------------
-- module: opcua
-  metricsets: ["opcua"]
-  enabled: false
-  period: 10s
-  hosts: ["localhost"]
-
-
-
