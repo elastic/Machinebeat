@@ -35,6 +35,10 @@ Use [Elasticsearch Service](https://www.elastic.co/cloud/elasticsearch-service/s
 To start quickly and easy use the pre build binaries shared in this repo!
 To get started choose the version that fits for your environment.
 
+### ARM
+Download the latest version of the binary here:
+https://ela.st/machinebeat-arm
+
 ### Linux
 Download the latest version of the binary here:
 https://ela.st/machinebeat-linux
