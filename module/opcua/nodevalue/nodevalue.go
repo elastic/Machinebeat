@@ -55,6 +55,7 @@ type Node struct {
 	ID       string `config:"id"`
 	Label    string `config:"label"`
 	Name     string
+	Path     string
 	DataType string
 }
 

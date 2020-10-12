@@ -27,6 +27,12 @@ type ResponseObject struct {
 	value *ua.DataValue
 }
 
+type NodeObject struct {
+	path string
+	name string
+	node *opcua.Node
+}
+
 func join(a, b string) string {
 	if a == "" {
 		return b
@@ -73,9 +79,12 @@ func connect(config *MetricSet) (bool, error) {
 		opcua.SecurityModeString(config.Mode),
 	}
 
+	logp.Info("[OPCUA] Set ApplicationName to %v", config.AppName)
+	opts = append(opts, opcua.ApplicationName(config.AppName))
+	logp.Info("[OPCUA] Set ApplicationDescription (SAN DNS and SAN URL) to %v", config.AppName)
+	opts = append(opts, opcua.ApplicationURI(config.AppName))
+
 	if config.ClientCert != "" {
-		logp.Info("[OPCUA] Set ApplicationDescription (SAN DNS and SAN URL) to %v", config.AppName)
-		opts = append(opts, opcua.ApplicationURI(config.AppName))
 		opts = append(opts, opcua.CertificateFile(config.ClientCert), opcua.PrivateKeyFile(config.ClientKey))
 	}
 
@@ -122,7 +131,6 @@ func collectData() ([]*ResponseObject, error) {
 		} else {
 			logp.Debug("Collect", err.Error())
 		}
-
 		attrs, err := node.Attributes(ua.AttributeIDDataType)
 		if err != nil {
 			logp.Error(err)
@@ -313,23 +321,26 @@ func startBrowse() []Node {
 	//For each configured Node start browsing.
 	for _, nodeObj := range nodeObjsToBrowse {
 		//This will browse through nodes and subscribe to every node that we found
-		nodeIDs, err := browse(nodeObj, 0)
+		nodeObjects, err := browse(nodeObj, 0, "")
 		if err != nil {
 			logp.Error(err)
 			logp.Debug("Browse", err.Error())
 		}
-		nodes = append(nodes, transformNodeIDtoNode(nodeIDs)...)
+
+		nodes = append(nodes, transformNodeObjectToNode(nodeObjects)...)
 		logp.Debug("Browse", "Found %v nodes to collect data from so far", len(nodes))
 	}
 	logp.Info("Found %v nodes in total to collect data from", len(nodes))
 	return nodes
 }
 
-func transformNodeIDtoNode(nodeIDs []*ua.NodeID) []Node {
+func transformNodeObjectToNode(nodeObjects []*NodeObject) []Node {
 	var nodes []Node
-	for _, nodeId := range nodeIDs {
+	for _, nodeObject := range nodeObjects {
 		nodes = append(nodes, Node{
-			ID: nodeId.String(),
+			ID:    nodeObject.node.ID.String(),
+			Path:  nodeObject.path,
+			Label: nodeObject.name,
 		})
 	}
 	return nodes
@@ -337,36 +348,51 @@ func transformNodeIDtoNode(nodeIDs []*ua.NodeID) []Node {
 
 //browse() is a recursive function to iterate through the node tree
 // it returns the node ids of every node that produces values to subscribe to
-func browse(node *opcua.Node, level int) ([]*ua.NodeID, error) {
-	logp.Debug("Browse", "Start browsing")
+func browse(node *opcua.Node, level int, path string) ([]*NodeObject, error) {
+	logp.Debug("Browse", "Start browsing at %v", path)
 	if level > cfg.Browse.MaxLevel {
 		logp.Debug("Browse", "Max level reached. Increase browse.maxLevel to increase this limit")
 		return nil, nil
 	}
 
-	var nodes []*ua.NodeID
+	var nodes []*NodeObject
+	var browseName string
 
 	logp.Info("Analyse node id %v", node.ID.String())
 
 	//Collect attributes of the current node
-	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName)
+	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName, ua.AttributeIDBrowseName)
 	if err != nil {
 		logp.Error(err)
 		logp.Debug("Browse", err.Error())
 	}
 
+	switch err := attrs[1].Status; err {
+	case ua.StatusOK:
+		browseName = attrs[1].Value.String()
+	default:
+		logp.Debug("Get BrowseName", "Could get BrowseName to build path.")
+		browseName = ""
+	}
+
+	path = join(path, browseName)
+
 	//Only add nodes that have data
 	if getDataType(attrs[0]) != "" {
+		nodeObject := &NodeObject{}
 		logp.Info("Add new node to list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
-		//go subscribeTo(node.ID)
-		nodes = append(nodes, node.ID)
+
+		nodeObject.node = node
+		nodeObject.path = path
+		nodeObject.name = attrs[1].Value.String()
+		nodes = append(nodes, nodeObject)
 	}
 
 	//Collect children of the node and iterate through them
 	children := findChildren(node, 0)
 
 	for i, child := range children {
-		n, err := browse(child, level+1)
+		n, err := browse(child, level+1, path)
 		if err != nil {
 			logp.Error(err)
 			logp.Debug("Browse", err.Error())
