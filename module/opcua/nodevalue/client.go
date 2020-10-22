@@ -11,16 +11,19 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
-var (
+type Client struct {
 	client         *opcua.Client
 	subscription   chan *ResponseObject
-	endpoint       = ""
-	connected      = false
-	cfg            *MetricSet
+	endpoint       string
+	connected      bool
 	nodesToCollect []Node
-)
+	sem            *semaphore.Weighted
+	counter        int
+}
 
 type ResponseObject struct {
 	node  Node
@@ -53,8 +56,7 @@ func printEndpoints(endpoints []*ua.EndpointDescription) {
 
 func connect(config *MetricSet) (bool, error) {
 	var err error
-	cfg = config
-	if connected {
+	if config.Client.connected {
 		return false, nil
 	}
 	logp.Info("[OPCUA] Get all endpoints from %v", config.Endpoint)
@@ -68,9 +70,9 @@ func connect(config *MetricSet) (bool, error) {
 	if ep == nil {
 		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security:")
 		printEndpoints(endpoints)
-		endpoint = config.Endpoint
+		config.Client.endpoint = config.Endpoint
 	} else {
-		endpoint = ep.EndpointURL
+		config.Client.endpoint = ep.EndpointURL
 		logp.Info("[OPCUA] Policy URI: %v with security mode %v", ep.SecurityPolicyURI, ep.SecurityMode)
 	}
 
@@ -100,11 +102,11 @@ func connect(config *MetricSet) (bool, error) {
 	}
 
 	ctx := context.Background()
-	client = opcua.NewClient(endpoint, opts...)
-	if err := client.Connect(ctx); err != nil {
+	config.Client.client = opcua.NewClient(endpoint, opts...)
+	if err := config.Client.Connect(ctx); err != nil {
 		return false, err
 	}
-	connected = true
+	config.Client.connected = true
 	logp.Info("[OPCUA] Connection established")
 	return true, err
 }
@@ -366,28 +368,28 @@ func browse(node *opcua.Node, level int, path string) ([]*NodeObject, error) {
 		logp.Error(err)
 		logp.Debug("Browse", err.Error())
 	}
+	if len(attrs) > 0 {
+		switch err := attrs[1].Status; err {
+		case ua.StatusOK:
+			browseName = attrs[1].Value.String()
+		default:
+			logp.Debug("Get BrowseName", "Could get BrowseName to build path.")
+			browseName = ""
+		}
 
-	switch err := attrs[1].Status; err {
-	case ua.StatusOK:
-		browseName = attrs[1].Value.String()
-	default:
-		logp.Debug("Get BrowseName", "Could get BrowseName to build path.")
-		browseName = ""
+		path = join(path, browseName)
+
+		//Only add nodes that have data
+		if getDataType(attrs[0]) != "" {
+			nodeObject := &NodeObject{}
+			logp.Info("Add new node to list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
+
+			nodeObject.node = node
+			nodeObject.path = path
+			nodeObject.name = attrs[1].Value.String()
+			nodes = append(nodes, nodeObject)
+		}
 	}
-
-	path = join(path, browseName)
-
-	//Only add nodes that have data
-	if getDataType(attrs[0]) != "" {
-		nodeObject := &NodeObject{}
-		logp.Info("Add new node to list: ID: %v| Type %v| Name %v", node.ID.String(), getDataType(attrs[0]), attrs[1].Value.String())
-
-		nodeObject.node = node
-		nodeObject.path = path
-		nodeObject.name = attrs[1].Value.String()
-		nodes = append(nodes, nodeObject)
-	}
-
 	//Collect children of the node and iterate through them
 	children := findChildren(node, 0)
 
