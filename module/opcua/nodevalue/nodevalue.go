@@ -52,18 +52,10 @@ type Browse struct {
 	MaxNodePerParent int  `config:"maxNodePerParent"`
 }
 
-type Node struct {
-	ID       string `config:"id"`
-	Label    string `config:"label"`
-	Name     string
-	Path     string
-	DataType string
-}
-
 var browseDefaults = Browse{
 	Enabled:          true,
-	MaxLevel:         3,
-	MaxNodePerParent: 5,
+	MaxLevel:         0,
+	MaxNodePerParent: 0,
 }
 
 var clientDefaults = Client{
@@ -75,8 +67,8 @@ var DefaultConfig = MetricSet{
 	RetryOnErrorCount:   5,
 	MaxThreads:          50,
 	Subscribe:           true,
-	Policy:              "",
-	Mode:                "",
+	Policy:              "None",
+	Mode:                "None",
 	Username:            "",
 	Password:            "",
 	ClientCert:          "",
@@ -114,17 +106,15 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		Nodes:               config.Nodes,
 		Browse:              config.Browse,
 		MaxTriesToReconnect: config.MaxTriesToReconnect,
+		Client:              config.Client,
 	}
 
 	metricset.Client.counter = metricset.MaxTriesToReconnect
-	newConnection, err := establishConnection(metricset, 1)
+	metricset.Client.config = metricset
+
+	_, err := establishConnection(metricset, 1)
 	if err != nil {
 		return nil, err
-	}
-
-	if !newConnection {
-		logp.Warn("A new connection attempt was made. This gets ignored from this module")
-		return metricset, nil
 	}
 
 	//Check if browsing is activated in general.
@@ -134,7 +124,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		logp.Info("Browsing is enabled. Data collection will start after discovery. Based on your server and browsing configuration this can take some time.")
 
 		//Implements the browsing service of OPC UA.
-		metricset.Client.nodesToCollect = startBrowse()
+		metricset.Client.startBrowse()
 
 		logp.Debug("Browse", "Nodes to collect data from")
 		for _, nodeConfig := range metricset.Client.nodesToCollect {
@@ -144,14 +134,20 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		logp.Info("Browsing finished")
 	} else {
 		//If browsing is disabled we will collect directly from the configured nodes
-		metricset.Client.nodesToCollect = metricset.Nodes
+		for i := range metricset.Nodes {
+			metricset.Client.nodesToCollect = append(metricset.Client.nodesToCollect, &metricset.Nodes[i])
+		}
+		err := metricset.Client.appendNodeInformation()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(metricset.Client.nodesToCollect) == 0 {
 		logp.Info("Found 0 nodes to collect data from.")
 	} else {
 		if metricset.Subscribe {
-			startSubscription()
+			metricset.Client.startSubscription()
 		} else {
 			metricset.Client.sem = semaphore.NewWeighted(int64(metricset.MaxThreads))
 		}
@@ -161,7 +157,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 
 func establishConnection(config *MetricSet, retryCounter int) (bool, error) {
 	for i := retryCounter; i > 0; i-- {
-		newConnection, err := connect(config)
+		newConnection, err := config.Client.connect()
 		if err == nil {
 			return newConnection, err
 		}
@@ -178,15 +174,15 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 	defer func() {
 		if r := recover(); r != nil {
 			logp.Info("Recovered from panic. The beat will reconnect now")
-			closeConnection()
+			m.Client.closeConnection()
 		}
 	}()
 
-	data, err := collectData()
+	data, err := m.Client.collectData()
 	if err != nil {
 		logp.Info("error: %v", err)
 		logp.Error(err)
-		closeConnection()
+		m.Client.closeConnection()
 		return err
 	}
 
@@ -200,7 +196,7 @@ func handleCounter(eventCount int, resetValue int, config *MetricSet) {
 		config.Client.counter = config.Client.counter - 1
 		if config.Client.counter == 0 {
 			logp.Info("[OPCUA] Too much zero publish attempts.")
-			closeConnection()
+			config.Client.closeConnection()
 		}
 	} else {
 		config.Client.counter = resetValue
@@ -240,12 +236,12 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 // format. It publishes the event which is then forwarded to the output. In case
 // of an error set the Error field of mb.Event or simply call report.Error().
 func (m *MetricSet) Fetch(report mb.ReporterV2) error {
-	if connected {
+	if m.Client.connected {
 		if m.Subscribe {
 			var data []*ResponseObject
 			for {
 				select {
-				case response := <-subscription:
+				case response := <-m.Client.subscription:
 					data = append(data, response)
 				default:
 					publishResponses(data, report, m)
@@ -254,12 +250,12 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 			}
 		} else {
 			ctx := context.Background()
-			if err := metricset.Client.sem.Acquire(ctx, 1); err != nil {
+			if err := m.Client.sem.Acquire(ctx, 1); err != nil {
 				logp.Err("[OPCUA] Max threads reached. This means that it takes too long to get the data from your OPC UA server. You should consider to increase the max Thread counter or the period of getting the data.")
 			} else {
 				go func() {
 					collect(m, report)
-					metricset.Client.sem.Release(1)
+					m.Client.sem.Release(1)
 				}()
 			}
 		}
