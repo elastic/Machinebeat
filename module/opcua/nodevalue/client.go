@@ -302,8 +302,8 @@ func (client *Client) startBrowse() {
 	var nodeObjsToBrowse []*opcua.Node
 	var opcuaClient = client.opcua
 
-	if len(client.nodesToCollect) > 0 {
-		for _, nodeCfg := range client.nodesToCollect {
+	if len(client.config.Nodes) > 0 {
+		for _, nodeCfg := range client.config.Nodes {
 			logp.Info("[OPCUA] Start browsing node: %v", nodeCfg.ID)
 			nodeId, err := ua.ParseNodeID(nodeCfg.ID)
 			if err != nil {
