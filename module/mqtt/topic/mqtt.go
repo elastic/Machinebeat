@@ -31,6 +31,8 @@ type MetricSet struct {
 	ClientCert      string   `config:"clientCert"`
 	ClientKey       string   `config:"clientKey"`
 	ClientID        string   `config:"clientID"`
+	LegacyFields    bool     `config:"legacyFields"`
+	ECSFields       bool     `config:"ECSFields"`
 }
 
 var (
@@ -46,6 +48,8 @@ var (
 		CA:              "",
 		ClientCert:      "",
 		ClientKey:       "",
+		LegacyFields:    false,
+		ECSFields:       true,
 	}
 )
 
@@ -72,6 +76,8 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		ClientCert:      config.ClientCert,
 		ClientKey:       config.ClientKey,
 		ClientID:        config.ClientID,
+		LegacyFields:    config.LegacyFields,
+		ECSFields:       config.ECSFields,
 	}
 
 	setupMqttClient(metricset)
@@ -84,11 +90,17 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 // of an error set the Error field of mb.Event or simply call report.Error().
 func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 	// we are working in a subscriber mode
-	// we send the all collected data after the configured timeframe
+	// we send the collected data after the configured timeframe
 	for {
 		select {
 		case event := <-events:
-			event.ModuleFields["broker"] = m.BrokerURL
+			if m.LegacyFields {
+				event.ModuleFields["broker"] = m.BrokerURL
+			}
+			if m.ECSFields {
+				event.RootFields.Put("event.provider", "mqtt")
+				event.RootFields.Put("event.url", m.BrokerURL)
+			}
 			report.Event(event)
 		default:
 			return nil

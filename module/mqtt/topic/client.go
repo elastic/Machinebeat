@@ -3,7 +3,6 @@ package topic
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/metricbeat/mb"
-	"gopkg.in/vmihailenco/msgpack.v2"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -130,28 +128,34 @@ func subscribeOnConnect(client MQTT.Client) {
 
 // Mqtt message handler
 func onMessage(client MQTT.Client, msg MQTT.Message) {
-	logp.Debug("MQTT Module", "MQTT message received: %s", string(msg.Payload()))
+	logp.Debug("MQTT", "MQTT message received: %s", string(msg.Payload()))
 	var mbEvent mb.Event
 	event := make(common.MapStr)
+	root := make(common.MapStr)
 
-	// default case
-	var message = make(common.MapStr)
-	message["content"] = string(msg.Payload())
-	if config.DecodePaylod == true {
-		message["fields"] = DecodePayload(msg.Payload())
-	}
+	if config.LegacyFields {
+		var message = make(common.MapStr)
+		message["content"] = string(msg.Payload())
 
-	if strings.HasPrefix(msg.Topic(), "$") {
-		event["isSystemTopic"] = true
-	} else {
-		event["isSystemTopic"] = false
+		if strings.HasPrefix(msg.Topic(), "$") {
+			event["isSystemTopic"] = true
+		} else {
+			event["isSystemTopic"] = false
+		}
+		event["topic"] = msg.Topic()
+		message["ID"] = msg.MessageID()
+		message["retained"] = msg.Retained()
+		event["message"] = message
+
 	}
-	event["topic"] = msg.Topic()
-	message["ID"] = msg.MessageID()
-	message["retained"] = msg.Retained()
-	event["message"] = message
+	if config.ECSFields {
+		root.Put("event.creation", time.Now())
+		root.Put("event.dataset", msg.Topic())
+		root.Put("message", string(msg.Payload()))
+	}
 
 	// Finally sending the message to elasticsearch
+	mbEvent.RootFields = root
 	mbEvent.ModuleFields = event
 	events <- mbEvent
 
@@ -163,28 +167,6 @@ func reConnectHandler(client MQTT.Client, reason error) {
 	logp.Warn("[MQTT] Connection lost: %s", reason.Error())
 	connected = false
 	connect(client)
-}
-
-// DecodePayload will try to decode the payload. If every check fails, it will
-// return the payload as a string
-func DecodePayload(payload []byte) common.MapStr {
-	event := make(common.MapStr)
-
-	// A msgpack payload must be a json-like object
-	err := msgpack.Unmarshal(payload, &event)
-	if err == nil {
-		logp.Debug("mqttbeat", "Payload decoded - msgpack")
-		return event
-	}
-
-	err = json.Unmarshal(payload, &event)
-	if err == nil {
-		logp.Debug("mqttbeat", "Payload decoded - json")
-		return event
-	}
-
-	logp.Debug("mqttbeat", "decoded - text")
-	return event
 }
 
 // ParseTopics will parse the config file and return a map with topic:QoS

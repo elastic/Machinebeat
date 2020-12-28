@@ -44,6 +44,8 @@ type MetricSet struct {
 	ClientKey           string `config:"clientKey"`
 	AppName             string `config:"appName"`
 	Client              Client
+	LegacyFields        bool `config:"legacyFields"`
+	ECSFields           bool `config:"ECSFields"`
 }
 
 type Browse struct {
@@ -78,6 +80,8 @@ var DefaultConfig = MetricSet{
 	Browse:              browseDefaults,
 	MaxTriesToReconnect: 5,
 	Client:              clientDefaults,
+	LegacyFields:        false,
+	ECSFields:           true,
 }
 
 // New creates a new instance of the MetricSet. New is responsible for unpacking
@@ -107,6 +111,8 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		Browse:              config.Browse,
 		MaxTriesToReconnect: config.MaxTriesToReconnect,
 		Client:              config.Client,
+		LegacyFields:        config.LegacyFields,
+		ECSFields:           config.ECSFields,
 	}
 
 	metricset.Client.counter = metricset.MaxTriesToReconnect
@@ -174,6 +180,7 @@ func collect(m *MetricSet, report mb.ReporterV2) error {
 	defer func() {
 		if r := recover(); r != nil {
 			logp.Info("Recovered from panic. The beat will reconnect now")
+			logp.Info("Panic message: %v", r)
 			m.Client.closeConnection()
 		}
 	}()
@@ -210,22 +217,52 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 		var mbEvent mb.Event
 		event := make(common.MapStr)
 		module := make(common.MapStr)
-		if response.value.Status == 0 {
-			event.Put("state", "OK")
-		} else {
-			event.Put("state", "ERROR")
-		}
-		event.Put("created", response.value.SourceTimestamp.String())
+		root := make(common.MapStr)
 
-		if response.value.Value != nil {
-			if response.node.DataType != "" {
-				event.Put(response.node.DataType, response.value.Value.Value())
+		//Publish the event with the legacy field schema
+		if config.LegacyFields {
+			if response.value.Status == 0 {
+				event.Put("state", "OK")
 			} else {
-				event.Put("value", response.value.Value.Value())
+				event.Put("state", "ERROR")
+			}
+			event.Put("created", response.value.SourceTimestamp.String())
+
+			if response.value.Value != nil {
+				if response.node.DataType != "" {
+					event.Put(response.node.DataType, response.value.Value.Value())
+				} else {
+					event.Put("value", response.value.Value.Value())
+				}
+			}
+			module.Put("node", response.node)
+			module.Put("endpoint", config.Endpoint)
+
+		}
+
+		//Publish the event with ECS field schema
+		if config.ECSFields {
+			root.Put("event.provider", "opcua")
+			root.Put("event.url", config.Endpoint)
+			root.Put("event.creation", time.Now())
+			root.Put("event.dataset", response.node.Path)
+
+			root.Put("sensor.id", response.node.ID)
+			root.Put("sensor.name", response.node.Name)
+			root.Put("sensor.label", response.node.Label)
+
+			root.Put("value.source_timestamp", response.value.SourceTimestamp.String())
+			if response.value.Value != nil {
+				if response.node.DataType != "" {
+					root.Put("value.datatype", response.node.DataType)
+					root.Put("value.value_"+response.node.DataType, response.value.Value.Value())
+				} else {
+					root.Put("value.value", response.value.Value.Value())
+				}
 			}
 		}
-		module.Put("node", response.node)
-		module.Put("endpoint", config.Endpoint)
+
+		mbEvent.RootFields = root
 		mbEvent.ModuleFields = module
 		mbEvent.MetricSetFields = event
 		report.Event(mbEvent)
@@ -267,6 +304,9 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 		if err != nil {
 			logp.Info("[OPCUA] Reconnect was not successful")
 			return err
+		}
+		if m.Subscribe {
+			m.Client.startSubscription()
 		}
 	}
 	return nil

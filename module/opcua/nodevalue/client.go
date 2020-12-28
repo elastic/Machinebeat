@@ -5,11 +5,9 @@ import (
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/id"
-	"github.com/gopcua/opcua/monitor"
 	"github.com/gopcua/opcua/ua"
 
 	"context"
-	"log"
 	"time"
 
 	"golang.org/x/sync/semaphore"
@@ -74,8 +72,13 @@ func (client *Client) connect() (bool, error) {
 		logp.Debug("Connect", err.Error())
 	}
 
+	var policy = ua.FormatSecurityPolicyURI(config.Policy)
+	var mode = ua.MessageSecurityModeFromString(config.Mode)
+	logp.Info("[OPCUA] Your selected policy: %v and security mode: %v", policy, mode)
+
 	ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
 	if ep == nil {
+
 		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security:")
 		printEndpoints(endpoints)
 		client.endpoint = config.Endpoint
@@ -265,7 +268,6 @@ func (client *Client) subscribeTo() {
 
 	client.openSubscription = sub
 
-	go sub.Run(ctx) // start Publish loop
 	logp.Debug("Subscribe", "[OPCUA] Start listening")
 	for {
 		select {
@@ -454,11 +456,6 @@ func getDataType(value *ua.DataValue) string {
 	return ""
 }
 
-func cleanup(sub *monitor.Subscription) {
-	log.Printf("[OPCUA] Subscribe Stats: sub=%d delivered=%d dropped=%d", sub.SubscriptionID(), sub.Delivered(), sub.Dropped())
-	sub.Unsubscribe()
-}
-
 func (client *Client) closeConnection() {
 	logp.Debug("Shutdown", "Will shutdown connection savely")
 	client.connected = false
@@ -471,6 +468,7 @@ func (client *Client) closeConnection() {
 	}()
 
 	client.openSubscription.Cancel()
+	client.openSubscription = nil
 	client.opcua.CloseSession()
 	client.opcua.Close()
 	logp.Debug("Shutdown", "Shutdown successfully")
