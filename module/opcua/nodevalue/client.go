@@ -23,6 +23,7 @@ type Client struct {
 	sem              *semaphore.Weighted
 	counter          int
 	config           *MetricSet
+	ctx              context.Context
 }
 
 type ResponseObject struct {
@@ -66,7 +67,8 @@ func (client *Client) connect() (bool, error) {
 		return false, nil
 	}
 	logp.Info("[OPCUA] Get all endpoints from %v", config.Endpoint)
-	endpoints, err := opcua.GetEndpoints(config.Endpoint)
+	client.ctx = context.Background()
+	endpoints, err := opcua.GetEndpoints(client.ctx, config.Endpoint)
 	if err != nil {
 		logp.Error(err)
 		logp.Debug("Connect", err.Error())
@@ -467,7 +469,7 @@ func (client *Client) closeConnection() {
 		}
 	}()
 
-	client.openSubscription.Cancel()
+	client.openSubscription.Cancel(client.ctx)
 	client.openSubscription = nil
 	client.opcua.CloseSession()
 	client.opcua.Close()

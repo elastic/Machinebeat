@@ -1,3 +1,9 @@
 # Directories
 build
 .idea
+logs
+release
+machinebeat.exe
+machinebeat.yml
+build.bat
+.gitignore

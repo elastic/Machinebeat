@@ -15,14 +15,6 @@ The ability to get machine metrics and other related information is a foundation
 
 In a future version Machinebeat is supposed to support additional protocols in order to cover a broader mix of different sensor metrics in the industry.
 
-# Latest release news 23. October 2020
-
-The OPC UA module browsing is adding the path for the node now. This helps to indentify nodes during ingest for enabling ingest pipeline features. Ingest pipelines helping e.g. to modify or drop data that is not necessary.
-
-This version also supports running multiple modules within one instance of Machinebeat.
-
-The OPC UA module now creates only 1 subscription per instance. This one subscription handles all nodes that you need to get data from.
-
 # Let's test it
 
 You don't have an Elastic cluster up and running?

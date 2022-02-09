@@ -11,6 +11,9 @@ import (
 
 	"context"
 	"errors"
+	"fmt"
+	"math"
+	"reflect"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -230,7 +233,15 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 
 			if response.value.Value != nil {
 				if response.node.DataType != "" {
-					event.Put(response.node.DataType, response.value.Value.Value())
+					if response.node.DataType == "float64" {
+						if !isArray(response.value.Value.Value()) {
+							if !math.IsNaN(response.value.Value.Value().(float64)) {
+								root.Put(response.node.DataType, response.value.Value.Value())
+							}
+						}
+					} else {
+						root.Put(response.node.DataType, response.value.Value.Value())
+					}
 				} else {
 					event.Put("value", response.value.Value.Value())
 				}
@@ -255,7 +266,16 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 			if response.value.Value != nil {
 				if response.node.DataType != "" {
 					root.Put("value.datatype", response.node.DataType)
-					root.Put("value.value_"+response.node.DataType, response.value.Value.Value())
+					if response.node.DataType == "float64" {
+						if !isArray(response.value.Value.Value()) {
+							if !math.IsNaN(response.value.Value.Value().(float64)) {
+								root.Put("value.value_"+response.node.DataType, response.value.Value.Value())
+							}
+						}
+					} else {
+						root.Put("value.value_"+response.node.DataType, response.value.Value.Value())
+					}
+
 				} else {
 					root.Put("value.value", response.value.Value.Value())
 				}
@@ -310,4 +330,21 @@ func (m *MetricSet) Fetch(report mb.ReporterV2) error {
 		}
 	}
 	return nil
+}
+
+func isArray(v interface{}) bool {
+
+	rt := reflect.TypeOf(v)
+	switch rt.Kind() {
+	case reflect.Slice:
+		fmt.Println(v, "is a slice with element type", rt.Elem())
+		return true
+	case reflect.Array:
+		fmt.Println(v, "is an array with element type", rt.Elem())
+		return true
+	default:
+		fmt.Println(v, "is something else entirely")
+		return false
+	}
+	return false
 }
