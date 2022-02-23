@@ -51,6 +51,25 @@ machinebeat.exe -e -c machinebeat.yml
 Use -e to see the log output.
 Use -c to set a different config file.
 
+### Docker
+
+We do not publish images of machinebeat. However we prepared a Dockerfile in order to build your own docker images.
+Before you build the image you can already change the config files. That way the configuration will be part of the image. 
+Of course you could also mount the config files later.
+
+Just run 
+```
+docker build . -f docker/Dockerfile -t elastic/machinebeat
+```
+in order to get your own docker image. After finishing that process you can start your machinebeat container with
+```
+docker/docker-run.sh
+```
+
+Afterward you can check that its working with 
+```
+docker logs machinebeat
+```
 ### Configurations
 
 #### OPCUA Module
