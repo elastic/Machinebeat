@@ -452,9 +452,13 @@ func getDataType(value *ua.DataValue) string {
 			return "float64"
 		}
 	default:
-		logp.Debug("Get DataType", "This node has no data attached.")
+		if value.Value != nil {
+			logp.Debug("Get DataType", "Using default data type: %v", value.Value.NodeID().String())
+			return value.Value.NodeID().String()
+		}
+		logp.Debug("Get DataType", "Default data type is not applicable")
 	}
-
+	logp.Debug("Get DataType", "Was not able to detect DataType")
 	return ""
 }
 

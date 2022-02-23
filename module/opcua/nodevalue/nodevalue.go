@@ -11,7 +11,7 @@ import (
 
 	"context"
 	"errors"
-	"fmt"
+	_ "fmt"
 	"math"
 	"reflect"
 
@@ -337,13 +337,13 @@ func isArray(v interface{}) bool {
 	rt := reflect.TypeOf(v)
 	switch rt.Kind() {
 	case reflect.Slice:
-		fmt.Println(v, "is a slice with element type", rt.Elem())
+		//fmt.Println(v, "is a slice with element type", rt.Elem())
 		return true
 	case reflect.Array:
-		fmt.Println(v, "is an array with element type", rt.Elem())
+		//fmt.Println(v, "is an array with element type", rt.Elem())
 		return true
 	default:
-		fmt.Println(v, "is something else entirely")
+		//fmt.Println(v, "is something else entirely")
 		return false
 	}
 	return false
