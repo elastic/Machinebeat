@@ -32,6 +32,10 @@ https://ela.st/machinebeat-arm
 Download the latest version of the binary here:
 https://ela.st/machinebeat-linux
 
+or use 
+```wget https://github.com/elastic/Machinebeat/releases/download/v7.17.1/machinebeat_linux_7.17.1.zip```
+and change the version number v7.17.1 to the latest
+
 Start the beat with the following command in your terminal.
 ```
 ./machinebeat -e -c machinebeat.yml
