@@ -4,6 +4,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/logp"
 
 	"github.com/gopcua/opcua"
+	"github.com/gopcua/opcua/debug"
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
 
@@ -62,6 +63,10 @@ func printEndpoints(endpoints []*ua.EndpointDescription) {
 func (client *Client) connect() (bool, error) {
 	var err error
 	var config = client.config
+
+	if config.Debug {
+		debug.Enable = true
+	}
 
 	if client.connected {
 		return false, nil
@@ -183,7 +188,7 @@ func (client *Client) collectData() ([]*ResponseObject, error) {
 	}
 
 	logp.Debug("Collect", "Sending request")
-	m, err := opcuaClient.Read(req)
+	m, err := opcuaClient.ReadWithContext(client.ctx, req)
 	if err != nil {
 		return retVal, err
 	}

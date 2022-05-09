@@ -49,6 +49,7 @@ type MetricSet struct {
 	Client              Client
 	LegacyFields        bool `config:"legacyFields"`
 	ECSFields           bool `config:"ECSFields"`
+	Debug               bool `config:"debug"`
 }
 
 type Browse struct {
@@ -85,6 +86,7 @@ var DefaultConfig = MetricSet{
 	Client:              clientDefaults,
 	LegacyFields:        false,
 	ECSFields:           true,
+	Debug:               false,
 }
 
 // New creates a new instance of the MetricSet. New is responsible for unpacking
@@ -116,6 +118,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		Client:              config.Client,
 		LegacyFields:        config.LegacyFields,
 		ECSFields:           config.ECSFields,
+		Debug:               config.Debug,
 	}
 
 	metricset.Client.counter = metricset.MaxTriesToReconnect
