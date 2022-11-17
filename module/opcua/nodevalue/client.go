@@ -9,6 +9,7 @@ import (
 	"github.com/gopcua/opcua/ua"
 
 	"context"
+	"strconv"
 	"time"
 
 	"golang.org/x/sync/semaphore"
@@ -224,7 +225,7 @@ func (client *Client) subscribeTo() {
 
 	//Create subscription
 	ctx := context.Background()
-	subInterval, err := time.ParseDuration("10ms")
+	subInterval, err := time.ParseDuration(strconv.Itoa(client.config.Subscription.PublishInterval) + "ms")
 	if err != nil {
 		logp.Error(err)
 		logp.Debug("Subscribe", err.Error())
@@ -234,7 +235,11 @@ func (client *Client) subscribeTo() {
 	ch := make(chan *opcua.PublishNotificationData)
 
 	sub, err := opcuaClient.Subscribe(&opcua.SubscriptionParameters{
-		Interval: subInterval,
+		Interval:                   subInterval,
+		LifetimeCount:              client.config.Subscription.LifeTimeCount,
+		MaxKeepAliveCount:          client.config.Subscription.MaxKeepAliveCount,
+		MaxNotificationsPerPublish: client.config.Subscription.MaxNotificationsPerPublish,
+		Priority:                   client.config.Subscription.Priority,
 	}, ch)
 	if err != nil {
 		logp.Info("Error occured")
@@ -259,7 +264,15 @@ func (client *Client) subscribeTo() {
 
 		// arbitrary client handle for the monitoring item
 		handle := uint32(i)
-		miCreateRequest := opcua.NewMonitoredItemCreateRequestWithDefaults(nodeId, ua.AttributeIDValue, handle)
+		var miCreateRequest *ua.MonitoredItemCreateRequest
+		if client.config.Monitoring.Filter.DataChangeTrigger == "none" {
+			logp.Debug("Subscribe", "[OPCUA] Monitoring with defaults")
+			miCreateRequest = opcua.NewMonitoredItemCreateRequestWithDefaults(nodeId, ua.AttributeIDValue, handle)
+		} else {
+			//Set the filter within the Monitoring Request
+			logp.Debug("Subscribe", "[OPCUA] Monitoring using data change filter")
+			miCreateRequest = client.dataChangeRequest(nodeId, handle)
+		}
 		res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
 		if err != nil || res.Results[0].StatusCode != ua.StatusOK {
 			logp.Info("Error occured, will skip node: %v", nodeCfg.ID)
@@ -302,6 +315,53 @@ func (client *Client) subscribeTo() {
 		}
 	}
 	logp.Info("[OPCUA] Stopped listening")
+}
+
+func (client *Client) dataChangeRequest(nodeID *ua.NodeID, handle uint32) *ua.MonitoredItemCreateRequest {
+	filter := ua.DataChangeFilter{
+		Trigger:       ua.DataChangeTriggerFromString(client.config.Monitoring.Filter.DataChangeTrigger),
+		DeadbandType:  translateDeadbandtypeToUint32(ua.DeadbandTypeFromString(client.config.Monitoring.Filter.DeadbandType)),
+		DeadbandValue: client.config.Monitoring.Filter.DeadbandValue,
+	}
+
+	filterExtObj := ua.ExtensionObject{
+		EncodingMask: ua.ExtensionObjectBinary,
+		TypeID: &ua.ExpandedNodeID{
+			NodeID: ua.NewNumericNodeID(0, id.DataChangeFilter_Encoding_DefaultBinary),
+		},
+		Value: filter,
+	}
+
+	req := &ua.MonitoredItemCreateRequest{
+		ItemToMonitor: &ua.ReadValueID{
+			NodeID:       nodeID,
+			AttributeID:  ua.AttributeIDValue,
+			DataEncoding: &ua.QualifiedName{},
+		},
+		MonitoringMode: ua.MonitoringModeReporting,
+		RequestedParameters: &ua.MonitoringParameters{
+			ClientHandle:     handle,
+			DiscardOldest:    true,
+			Filter:           &filterExtObj,
+			QueueSize:        client.config.Monitoring.QueueSize,
+			SamplingInterval: client.config.Monitoring.SamplingInterval,
+		},
+	}
+
+	return req
+}
+
+func translateDeadbandtypeToUint32(value ua.DeadbandType) uint32 {
+	if value == 0 {
+		return 0
+	}
+	if value == 1 {
+		return 1
+	}
+	if value == 2 {
+		return 2
+	}
+	return 0
 }
 
 //startBrowse is starting browsing through all configured nodes

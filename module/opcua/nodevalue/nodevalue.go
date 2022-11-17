@@ -32,20 +32,22 @@ func init() {
 // interface methods except for Fetch.
 type MetricSet struct {
 	mb.BaseMetricSet
-	Endpoint            string `config:"endpoint"`
-	Nodes               []Node `config:"nodes"`
-	Browse              Browse `config:"browse"`
-	RetryOnErrorCount   int    `config:"retryOnError"`
-	MaxThreads          int    `config:"maxThreads"`
-	MaxTriesToReconnect int    `config:"maxTriesToReconnect"`
-	Subscribe           bool   `config:"subscribe"`
-	Username            string `config:"username"`
-	Password            string `config:"password"`
-	Policy              string `config:"policy"`
-	Mode                string `config:"securityMode"`
-	ClientCert          string `config:"clientCert"`
-	ClientKey           string `config:"clientKey"`
-	AppName             string `config:"appName"`
+	Endpoint            string       `config:"endpoint"`
+	Nodes               []Node       `config:"nodes"`
+	Browse              Browse       `config:"browse"`
+	RetryOnErrorCount   int          `config:"retryOnError"`
+	MaxThreads          int          `config:"maxThreads"`
+	MaxTriesToReconnect int          `config:"maxTriesToReconnect"`
+	Subscribe           bool         `config:"subscribe"`
+	Subscription        Subscription `config:"subscription"`
+	Monitoring          Monitoring   `config:"monitoring"`
+	Username            string       `config:"username"`
+	Password            string       `config:"password"`
+	Policy              string       `config:"policy"`
+	Mode                string       `config:"securityMode"`
+	ClientCert          string       `config:"clientCert"`
+	ClientKey           string       `config:"clientKey"`
+	AppName             string       `config:"appName"`
 	Client              Client
 	LegacyFields        bool `config:"legacyFields"`
 	ECSFields           bool `config:"ECSFields"`
@@ -56,6 +58,40 @@ type Browse struct {
 	Enabled          bool `config:"enabled"`
 	MaxLevel         int  `config:"maxLevel"`
 	MaxNodePerParent int  `config:"maxNodePerParent"`
+}
+
+type Subscription struct {
+	PublishInterval            int    `config:"publishInterval"`
+	LifeTimeCount              uint32 `config:"lifeTimeCount"`
+	MaxKeepAliveCount          uint32 `config:"maxKeepAliveCount"`
+	MaxNotificationsPerPublish uint32 `config:"maxNotificationsPerPublish"`
+	Priority                   uint8  `config:"priority"`
+}
+
+type Monitoring struct {
+	QueueSize        uint32  `config:"queueSize"`
+	SamplingInterval float64 `config:"samplingInterval"`
+	Filter           Filter  `config:"filter"`
+}
+
+type Filter struct {
+	DataChangeTrigger string  `config:"dataChangeTrigger"`
+	DeadbandType      string  `config:"deadbandType"`
+	DeadbandValue     float64 `config:"deadbandValue"`
+}
+
+var subscriptionDefaults = Subscription{
+	PublishInterval: 10,
+}
+
+var monitoringDefaults = Monitoring{
+	Filter:           filterDefaults,
+	QueueSize:        10,
+	SamplingInterval: 1.0,
+}
+
+var filterDefaults = Filter{
+	DataChangeTrigger: "none",
 }
 
 var browseDefaults = Browse{
@@ -87,6 +123,8 @@ var DefaultConfig = MetricSet{
 	LegacyFields:        false,
 	ECSFields:           true,
 	Debug:               false,
+	Subscription:        subscriptionDefaults,
+	Monitoring:          monitoringDefaults,
 }
 
 // New creates a new instance of the MetricSet. New is responsible for unpacking
@@ -119,6 +157,8 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 		LegacyFields:        config.LegacyFields,
 		ECSFields:           config.ECSFields,
 		Debug:               config.Debug,
+		Subscription:        config.Subscription,
+		Monitoring:          config.Monitoring,
 	}
 
 	metricset.Client.counter = metricset.MaxTriesToReconnect

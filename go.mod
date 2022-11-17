@@ -15,7 +15,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
-	github.com/gopcua/opcua v0.3.1
+	github.com/gopcua/opcua v0.3.7
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jcchavezs/porto v0.4.0 // indirect
