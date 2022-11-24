@@ -1,8 +1,8 @@
 # About Machinebeat
 
-> This Beat is experimental and may be changed or removed completely in a future release. Do not use in production.
+> This Beat is beta. It is used in many different environments without bigger issues for a longer period of time. However if you have issues with this beat you can't ask support. You need to open an issue in this repository to get help.
 
-The current version in master of Machinebeat is a well working and tested prototype. It will be developed further over time but can already be used. The downloadable binaries are expected to run without any mayor issues. The current state is experimental. Breaking changes are possible in future releases!
+The current version in master of Machinebeat is a well working and tested. It will be developed further over time but can already be used. The downloadable binaries are expected to run without any mayor issues. The current state is beta. We try to avoid breaking changes in future releases!
 
 What is a beat? A beat is a lightweight data shipper written in GOLANG developed by [Elastic N.V.](https://www.elastic.co) and the community. It is open source and also implements a framework offered to the community to [build their own beats](https://www.elastic.co/guide/en/beats/devguide/current/new-beat.html). Those beats may offer special purpose data collection not offered by [existing beats](https://www.elastic.co/products/beats). Machinebeat is one of those special purpose beats.
 
