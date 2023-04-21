@@ -9,7 +9,8 @@ What is a beat? A beat is a lightweight data shipper written in GOLANG developed
 The aim of machinebeat is, to build a leightweight data shipper that is able to pull metrics from machines used in industrial  environments and ship it to Elasticsearch or have [Logstash](https://www.elastic.co/products/logstash) or a message queue like [Kafka](https://kafka.apache.org/) inbetween, depending on the use case and architecture.
 
 Today Machinebeat is able to connect to [OPC-UA](https://opcfoundation.org/) Servers, MQTT Broker and IoT Clout Services like AWS IoT core. It can pull data in real-time, subscribing to topics and feeding the data into Elasticsearch for near real-time monitoring purpose. This will enable machine operators to see behavior of their machines and analyse important metric on the fly.
-If you want to collect data from [PLCs](https://en.wikipedia.org/wiki/Programmable_logic_controller) check this out: [PLC4X at Github](https://github.com/apache/plc4x)
+
+Machinebeat now also supports PLC4X protocolls, like Modbus, S7, Ads, Bacnet, CBus, Eip and KNX. The PLC4X module is pretty fresh. We are looking for some real world users to check that the different protocols work like expected.
 
 The ability to get machine metrics and other related information is a foundation for maintenance, quality assurance and optimization of industry 4.0 environments. It can help to see possible issues early in the production cylce or optimize the use of incredients for the products produced. There are many other problems that can be solved monitoring machine metrics once they can be derived from them.
 
@@ -135,6 +136,12 @@ Make sure your certificate has correct policies attached:
   ]
 }
 ```
+
+#### PLC4X Module
+
+Machinebeat now also supports PLC4X protocolls, like Modbus, S7, Ads, Bacnet, CBus, Eip and KNX. The PLC4X module is pretty fresh. We are looking for some real world users to check that the different protocols work like expected.
+To enable the PLC4X Module rename the file modules.d/plc4x.yml.disabled to modules.d/plc4x.yml
+Change the configuration based on your needs.
 
 ## How to build on your own env
 
