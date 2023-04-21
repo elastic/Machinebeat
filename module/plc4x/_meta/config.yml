@@ -1,0 +1,6 @@
+- module: plc4x
+  metricsets: ["plc4x"]
+  enabled: false
+  period: 10s
+  hosts: ["localhost"]
+

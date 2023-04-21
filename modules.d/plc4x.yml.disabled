@@ -1,0 +1,13 @@
+# Module: plc4x
+
+- module: plc4x
+  metricsets: ["value"]
+  enabled: true
+  period: 5s
+
+  #The URL of your PLC4X Endpoint
+  endpoint: "modbus-tcp://localhost"
+
+  #==========================  Node configuration ============================
+  nodes:
+  -  tag: "holding-register:1:REAL"

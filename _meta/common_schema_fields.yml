@@ -1,0 +1,10 @@
+- key: iiot
+  title: "IIoT"
+  release: beta
+  description: >
+    opcua module
+  fields:
+    - name: opcua
+      type: group
+      description: >
+      fields:

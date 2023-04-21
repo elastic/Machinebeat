@@ -1,0 +1,10 @@
+- name: plc4x
+  type: group
+  release: beta
+  description: >
+    plc4x
+  fields:
+    - name: example
+      type: keyword
+      description: >
+        Example field

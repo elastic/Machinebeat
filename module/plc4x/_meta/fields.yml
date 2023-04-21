@@ -1,0 +1,10 @@
+- key: plc4x
+  title: "plc4x"
+  release: beta
+  description: >
+    plc4x module
+  fields:
+    - name: plc4x
+      type: group
+      description: >
+      fields:

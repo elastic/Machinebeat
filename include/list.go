@@ -30,4 +30,6 @@ import (
 	_ "github.com/elastic/machinebeat/module/mqtt/topic"
 	_ "github.com/elastic/machinebeat/module/opcua"
 	_ "github.com/elastic/machinebeat/module/opcua/nodevalue"
+	_ "github.com/elastic/machinebeat/module/plc4x"
+	_ "github.com/elastic/machinebeat/module/plc4x/value"
 )
