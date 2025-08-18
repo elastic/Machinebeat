@@ -1,4 +1,4 @@
-FROM golang:1.19
+FROM golang:1.22-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		git gcc ca-certificates
 		
