@@ -78,20 +78,20 @@ setup.kibana:
 # The cloud.id setting overwrites the `output.elasticsearch.hosts` and
 # `setup.kibana.host` options.
 # You can find the `cloud.id` in the Elastic Cloud web UI.
-#cloud.id:
+#cloud.id: "AWS_Workshop:ZXUtd2VzdC0xLmF3cy5mb3VuZC5pbzo0NDMkY2Y1YjYzYWIzMWRlNDBlM2FlZjI0ZTNlYWNmMDMwNGYkNWNkYzBiYTUxN2U5NDQwOThiZDQxODFjNTQ5ODhjNGI="
 
 # The cloud.auth setting overwrites the `output.elasticsearch.username` and
 # `output.elasticsearch.password` settings. The format is `<user>:<pass>`.
-#cloud.auth:
+#cloud.auth: "elastic:AaXPYLxFSDoHB9mqd9QWXxyg"
 
 #================================ Outputs =====================================
 
 # Configure what output to use when sending the data collected by the beat.
 
 #-------------------------- Elasticsearch output ------------------------------
-output.elasticsearch:
+#output.elasticsearch:
   # Array of hosts to connect to.
-  hosts: ["localhost:9200"]
+  #hosts: ["localhost:9200"]
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
@@ -99,9 +99,9 @@ output.elasticsearch:
   #password: "changeme"
 
 #----------------------------- Logstash output --------------------------------
-#output.logstash:
+output.logstash:
   # The Logstash hosts
-  #hosts: ["localhost:5044"]
+  hosts: ["localhost:5044"]
 
   # Optional SSL. By default is off.
   # List of root certificates for HTTPS server verifications
@@ -125,7 +125,7 @@ processors:
 
 # Sets log level. The default log level is info.
 # Available log levels are: error, warning, info, debug
-# logging.level: debug
+logging.level: debug
 
 # At debug level, you can selectively enable logging only for some components.
 # To enable all selectors use ["*"]. Examples of other selectors are "beat",

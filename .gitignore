@@ -7,3 +7,10 @@ machinebeat.exe
 machinebeat.yml
 build.bat
 .gitignore
+machinebeat.yml
+modules.d/opcua.yml
+modules.d/opcua.yml.disabled
+modules.d/plc4x.yml.disabled2
+test-certs/cert.der
+test-certs/cert.pem
+machinebeat.yml
