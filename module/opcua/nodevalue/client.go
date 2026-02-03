@@ -84,9 +84,12 @@ func (client *Client) connect() (bool, error) {
 	var mode = ua.MessageSecurityModeFromString(config.Mode)
 	logp.Info("[OPCUA] Your selected policy: %v and security mode: %v", policy, mode)
 
-	ep := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
-	if ep == nil {
+	ep, err := opcua.SelectEndpoint(endpoints, config.Policy, ua.MessageSecurityModeFromString(config.Mode))
+	if err != nil {
+		logp.Err("[OPCUA] Failed to find suitable endpoint: %v", err)
+	}
 
+	if ep == nil {
 		logp.Err("[OPCUA] Failed to find suitable endpoint. Will try to switch to default [No security settings]. The following configurations are available for security:")
 		printEndpoints(endpoints)
 		client.endpoint = config.Endpoint
@@ -121,7 +124,10 @@ func (client *Client) connect() (bool, error) {
 	}
 
 	ctx := context.Background()
-	client.opcua = opcua.NewClient(client.endpoint, opts...)
+	client.opcua, err = opcua.NewClient(client.endpoint, opts...)
+	if err != nil {
+		return false, err
+	}
 	if err := client.opcua.Connect(ctx); err != nil {
 		return false, err
 	}
@@ -148,7 +154,7 @@ func (client *Client) appendNodeInformation() error {
 
 		if nodeCfg.Name == "" {
 			logp.Debug("Append Information", "Collect display name")
-			name, err := node.DisplayName()
+			name, err := node.DisplayName(context.Background())
 			if err == nil {
 				nodeCfg.Name = name.Text
 			} else {
@@ -157,7 +163,7 @@ func (client *Client) appendNodeInformation() error {
 		}
 		if nodeCfg.DataType == "" {
 			logp.Debug("Append Information", "Collect data type")
-			attrs, err := node.Attributes(ua.AttributeIDDataType)
+			attrs, err := node.Attributes(context.Background(), ua.AttributeIDDataType)
 			if err != nil {
 				logp.Error(err)
 				logp.Debug("Collect", "%s", err.Error())
@@ -189,7 +195,7 @@ func (client *Client) collectData() ([]*ResponseObject, error) {
 	}
 
 	logp.Debug("Collect", "Sending request")
-	m, err := opcuaClient.ReadWithContext(client.ctx, req)
+	m, err := opcuaClient.Read(client.ctx, req)
 	if err != nil {
 		return retVal, err
 	}
@@ -234,7 +240,7 @@ func (client *Client) subscribeTo() {
 	// start channel-based subscription
 	ch := make(chan *opcua.PublishNotificationData)
 
-	sub, err := opcuaClient.Subscribe(&opcua.SubscriptionParameters{
+	sub, err := opcuaClient.Subscribe(context.Background(), &opcua.SubscriptionParameters{
 		Interval:                   subInterval,
 		LifetimeCount:              client.config.Subscription.LifeTimeCount,
 		MaxKeepAliveCount:          client.config.Subscription.MaxKeepAliveCount,
@@ -273,7 +279,7 @@ func (client *Client) subscribeTo() {
 			logp.Debug("Subscribe", "[OPCUA] Monitoring using data change filter")
 			miCreateRequest = client.dataChangeRequest(nodeId, handle)
 		}
-		res, err := sub.Monitor(ua.TimestampsToReturnBoth, miCreateRequest)
+		res, err := sub.Monitor(context.Background(), ua.TimestampsToReturnBoth, miCreateRequest)
 		if err != nil || res.Results[0].StatusCode != ua.StatusOK {
 			logp.Info("Error occured, will skip node: %v", nodeCfg.ID)
 			if err != nil {
@@ -426,7 +432,7 @@ func (client *Client) browse(node *opcua.Node, level int, path string) error {
 	logp.Info("Analyse node id %v", node.ID.String())
 
 	//Collect attributes of the current node
-	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName, ua.AttributeIDBrowseName)
+	attrs, err := node.Attributes(context.Background(), ua.AttributeIDDataType, ua.AttributeIDDisplayName, ua.AttributeIDBrowseName)
 	if err != nil {
 		logp.Error(err)
 		logp.Debug("Browse", "%s", err.Error())
@@ -477,7 +483,7 @@ func (client *Client) browse(node *opcua.Node, level int, path string) error {
 }
 
 func findChildren(node *opcua.Node, refs uint32) []*opcua.Node {
-	children, err := node.Children(refs, ua.NodeClassAll)
+	children, err := node.Children(context.Background(), refs, ua.NodeClassAll)
 	if err != nil {
 		logp.Error(err)
 		logp.Debug("Browse", "%s", err.Error())
@@ -540,7 +546,7 @@ func (client *Client) closeConnection() {
 
 	client.openSubscription.Cancel(client.ctx)
 	client.openSubscription = nil
-	client.opcua.CloseSession()
-	client.opcua.Close()
+	client.opcua.CloseSession(client.ctx)
+	client.opcua.Close(client.ctx)
 	logp.Debug("Shutdown", "Shutdown successfully")
 }

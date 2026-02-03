@@ -9,7 +9,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/elastic/beats/v7 v7.0.0-alpha2.0.20260108191526-fd909e2bd441
 	github.com/elastic/elastic-agent-libs v0.26.2
-	github.com/gopcua/opcua v0.3.11
+	github.com/gopcua/opcua v0.8.0
 	github.com/magefile/mage v1.15.0
 	github.com/mitchellh/gox v1.0.1
 	github.com/pierrre/gotestcover v0.0.0-20160517101806-924dca7d15f0
