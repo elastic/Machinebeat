@@ -1,7 +1,7 @@
 package nodevalue
 
 import (
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/debug"
@@ -77,7 +77,7 @@ func (client *Client) connect() (bool, error) {
 	endpoints, err := opcua.GetEndpoints(client.ctx, config.Endpoint)
 	if err != nil {
 		logp.Error(err)
-		logp.Debug("Connect", err.Error())
+		logp.Debug("Connect", "%s", err.Error())
 	}
 
 	var policy = ua.FormatSecurityPolicyURI(config.Policy)
@@ -152,7 +152,7 @@ func (client *Client) appendNodeInformation() error {
 			if err == nil {
 				nodeCfg.Name = name.Text
 			} else {
-				logp.Debug("Collect", err.Error())
+				logp.Debug("Collect", "%s", err.Error())
 			}
 		}
 		if nodeCfg.DataType == "" {
@@ -160,7 +160,7 @@ func (client *Client) appendNodeInformation() error {
 			attrs, err := node.Attributes(ua.AttributeIDDataType)
 			if err != nil {
 				logp.Error(err)
-				logp.Debug("Collect", err.Error())
+				logp.Debug("Collect", "%s", err.Error())
 			} else {
 				nodeCfg.DataType = getDataType(attrs[0])
 			}
@@ -228,7 +228,7 @@ func (client *Client) subscribeTo() {
 	subInterval, err := time.ParseDuration(strconv.Itoa(client.config.Subscription.PublishInterval) + "ms")
 	if err != nil {
 		logp.Error(err)
-		logp.Debug("Subscribe", err.Error())
+		logp.Debug("Subscribe", "%s", err.Error())
 	}
 
 	// start channel-based subscription
@@ -244,7 +244,7 @@ func (client *Client) subscribeTo() {
 	if err != nil {
 		logp.Info("Error occured")
 		logp.Error(err)
-		logp.Debug("Subscribe", err.Error())
+		logp.Debug("Subscribe", "%s", err.Error())
 		return
 	}
 
@@ -258,7 +258,7 @@ func (client *Client) subscribeTo() {
 		if err != nil {
 			logp.Info("Error occured, will skip node: %v", nodeCfg.ID)
 			logp.Error(err)
-			logp.Debug("Subscribe", err.Error())
+			logp.Debug("Subscribe", "%s", err.Error())
 			continue
 		}
 
@@ -278,7 +278,7 @@ func (client *Client) subscribeTo() {
 			logp.Info("Error occured, will skip node: %v", nodeCfg.ID)
 			if err != nil {
 				logp.Error(err)
-				logp.Debug("Subscribe", err.Error())
+				logp.Debug("Subscribe", "%s", err.Error())
 			}
 			continue
 		}
@@ -378,7 +378,7 @@ func (client *Client) startBrowse() {
 			if err != nil {
 				logp.Info("Error occured, will skip node: %v", nodeCfg.ID)
 				logp.Error(err)
-				logp.Debug("Subscribe", err.Error())
+				logp.Debug("Subscribe", "%s", err.Error())
 				continue
 			}
 			nodeObj := opcuaClient.Node(nodeId)
@@ -401,7 +401,7 @@ func (client *Client) startBrowse() {
 		if err != nil {
 			logp.Info("Error occured")
 			logp.Error(err)
-			logp.Debug("Browse", err.Error())
+			logp.Debug("Browse", "%s", err.Error())
 		}
 
 		logp.Debug("Browse", "Found %v nodes to collect data from so far", len(client.nodesToCollect))
@@ -429,7 +429,7 @@ func (client *Client) browse(node *opcua.Node, level int, path string) error {
 	attrs, err := node.Attributes(ua.AttributeIDDataType, ua.AttributeIDDisplayName, ua.AttributeIDBrowseName)
 	if err != nil {
 		logp.Error(err)
-		logp.Debug("Browse", err.Error())
+		logp.Debug("Browse", "%s", err.Error())
 	}
 	if len(attrs) > 0 {
 		switch err := attrs[1].Status; err {
@@ -465,7 +465,7 @@ func (client *Client) browse(node *opcua.Node, level int, path string) error {
 		err := client.browse(child, level+1, path)
 		if err != nil {
 			logp.Error(err)
-			logp.Debug("Browse", err.Error())
+			logp.Debug("Browse", "%s", err.Error())
 		}
 
 		if config.Browse.MaxNodePerParent > 0 && i > config.Browse.MaxNodePerParent {
@@ -480,7 +480,7 @@ func findChildren(node *opcua.Node, refs uint32) []*opcua.Node {
 	children, err := node.Children(refs, ua.NodeClassAll)
 	if err != nil {
 		logp.Error(err)
-		logp.Debug("Browse", err.Error())
+		logp.Debug("Browse", "%s", err.Error())
 		return nil
 	}
 	logp.Debug("Browse", "Found %v new nodes for browsing with ref id %v", len(children), refs)

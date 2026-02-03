@@ -3,9 +3,9 @@ package nodevalue
 import (
 	"time"
 
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 
-	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/cfgwarn"
 	"github.com/elastic/beats/v7/metricbeat/mb"
 
@@ -261,9 +261,9 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 	handleCounter(len(data), config.MaxTriesToReconnect, config)
 	for _, response := range data {
 		var mbEvent mb.Event
-		event := make(common.MapStr)
-		module := make(common.MapStr)
-		root := make(common.MapStr)
+		event := make(mapstr.M)
+		module := make(mapstr.M)
+		root := make(mapstr.M)
 
 		//Publish the event with the legacy field schema
 		if config.LegacyFields {
