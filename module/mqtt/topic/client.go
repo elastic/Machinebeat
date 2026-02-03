@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
+	"github.com/elastic/elastic-agent-libs/logp"
 	"github.com/elastic/beats/v7/metricbeat/mb"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -130,11 +130,11 @@ func subscribeOnConnect(client MQTT.Client) {
 func onMessage(client MQTT.Client, msg MQTT.Message) {
 	logp.Debug("MQTT", "MQTT message received: %s", string(msg.Payload()))
 	var mbEvent mb.Event
-	event := make(common.MapStr)
-	root := make(common.MapStr)
+	event := make(mapstr.M)
+	root := make(mapstr.M)
 
 	if config.LegacyFields {
-		var message = make(common.MapStr)
+		var message = make(mapstr.M)
 		message["content"] = string(msg.Payload())
 
 		if strings.HasPrefix(msg.Topic(), "$") {
@@ -159,7 +159,7 @@ func onMessage(client MQTT.Client, msg MQTT.Message) {
 	mbEvent.ModuleFields = event
 	events <- mbEvent
 
-	logp.Debug("MQTT", "Event sent: %t")
+	logp.Debug("MQTT", "Event sent: %t", true)
 }
 
 // DefaultConnectionLostHandler does nothing

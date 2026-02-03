@@ -3,15 +3,14 @@ package plc4xvalue
 import (
 	"time"
 
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 
 	"github.com/elastic/beats/v7/libbeat/common/cfgwarn"
 	"github.com/elastic/beats/v7/metricbeat/mb"
 
 	"errors"
 	_ "fmt"
-
-	"github.com/elastic/beats/v7/libbeat/common"
 )
 
 // init registers the MetricSet with the central registry as soon as the program
@@ -94,7 +93,7 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 	logp.Info("[PLC4X] Publishing %v new events", len(data))
 	for _, response := range data {
 		var mbEvent mb.Event
-		root := make(common.MapStr)
+		root := make(mapstr.M)
 
 		root.Put("event.provider", "plc4x")
 		root.Put("event.url", config.Endpoint)
@@ -103,7 +102,7 @@ func publishResponses(data []*ResponseObject, report mb.ReporterV2, config *Metr
 
 		root.Put("sensor.id", response.node.ID)
 
-		event := make(common.MapStr)
+		event := make(mapstr.M)
 		event.Put("type", response.value.GetPlcValueType().String())
 		event.Put("value", response.value.GetString())
 

@@ -25,6 +25,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/cfgfile"
 	"github.com/elastic/beats/v7/libbeat/cmd"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 // BuildModulesManager adds support for modules management to a beat
@@ -40,7 +41,7 @@ func BuildModulesManager(beat *beat.Beat) (cmd.ModulesManager, error) {
 		return nil, errors.Errorf("wrong settings for config.modules.path, it is expected to end with *.yml. Got: %s", glob)
 	}
 
-	modulesManager, err := cfgfile.NewGlobManager(glob, ".yml", ".disabled")
+	modulesManager, err := cfgfile.NewGlobManager(glob, ".yml", ".disabled", logp.NewLogger("cfgfile"))
 	if err != nil {
 		return nil, errors.Wrap(err, "initialization error")
 	}
